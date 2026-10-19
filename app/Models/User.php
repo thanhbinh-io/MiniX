@@ -37,6 +37,9 @@ class User extends Authenticatable
      */
     protected $appends = [
         'avatar_url',
+        'banner_url',
+        'handle',
+        'joined_date_human',
     ];
 
     /**
@@ -71,6 +74,36 @@ class User extends Authenticatable
         }
 
         return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=1C9CEF&color=fff&size=120';
+    }
+
+    /**
+     * Banner URL accessor with fallback.
+     */
+    public function getBannerUrlAttribute(): string
+    {
+        if ($this->banner_path) {
+            return str_starts_with($this->banner_path, 'http')
+                ? $this->banner_path
+                : asset($this->banner_path);
+        }
+
+        return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&h=400&fit=crop';
+    }
+
+    /**
+     * Handle accessor.
+     */
+    public function getHandleAttribute(): string
+    {
+        return '@' . ($this->username ?? 'user');
+    }
+
+    /**
+     * Formatted joined date.
+     */
+    public function getJoinedDateHumanAttribute(): string
+    {
+        return $this->created_at ? 'Joined ' . $this->created_at->format('F Y') : '';
     }
 
     /**
@@ -109,5 +142,50 @@ class User extends Authenticatable
     public function bookmarkedTweets()
     {
         return $this->belongsToMany(Tweet::class, 'bookmarks')->withTimestamps();
+    }
+
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'following_id')->withTimestamps();
+    }
+
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'following_id', 'follower_id')->withTimestamps();
+    }
+
+    public function blockedUsers()
+    {
+        return $this->belongsToMany(User::class, 'blocks', 'user_id', 'blocked_id')->withTimestamps();
+    }
+
+    public function blockedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'blocks', 'blocked_id', 'user_id')->withTimestamps();
+    }
+
+    public function mutedUsers()
+    {
+        return $this->belongsToMany(User::class, 'mutes', 'user_id', 'muted_id')->withTimestamps();
+    }
+
+    public function isFollowing(User $user): bool
+    {
+        return $this->following()->where('following_id', $user->id)->exists();
+    }
+
+    public function isFollowedBy(User $user): bool
+    {
+        return $this->followers()->where('follower_id', $user->id)->exists();
+    }
+
+    public function hasBlocked(User $user): bool
+    {
+        return $this->blockedUsers()->where('blocked_id', $user->id)->exists();
+    }
+
+    public function hasMuted(User $user): bool
+    {
+        return $this->mutedUsers()->where('muted_id', $user->id)->exists();
     }
 }

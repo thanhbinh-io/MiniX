@@ -17,9 +17,19 @@ class TweetController extends Controller
      */
     public function index(Request $request): Response
     {
-        $userId = $request->user()?->id;
+        $user = $request->user();
+        $userId = $user?->id;
+
+        $excludedUserIds = collect();
+        if ($user) {
+            $blockedIds = $user->blockedUsers()->pluck('blocked_id');
+            $blockedByIds = $user->blockedByUsers()->pluck('user_id');
+            $mutedIds = $user->mutedUsers()->pluck('muted_id');
+            $excludedUserIds = $blockedIds->merge($blockedByIds)->merge($mutedIds)->unique();
+        }
 
         $tweets = Tweet::whereNull('parent_id')
+            ->when($excludedUserIds->isNotEmpty(), fn ($q) => $q->whereNotIn('user_id', $excludedUserIds))
             ->withInteractionDetails($userId)
             ->orderBy('id', 'desc')
             ->get();
