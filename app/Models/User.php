@@ -19,8 +19,24 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
+        'bio',
+        'avatar_path',
+        'banner_path',
+        'location',
+        'website',
+        'birthdate',
+    ];
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    protected $appends = [
+        'avatar_url',
     ];
 
     /**
@@ -40,5 +56,28 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'birthdate' => 'date',
     ];
+
+    /**
+     * Avatar URL accessor with fallback.
+     */
+    public function getAvatarUrlAttribute(): string
+    {
+        if ($this->avatar_path) {
+            return str_starts_with($this->avatar_path, 'http')
+                ? $this->avatar_path
+                : asset($this->avatar_path);
+        }
+
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=1C9CEF&color=fff&size=120';
+    }
+
+    /**
+     * Get tweets authored by this user.
+     */
+    public function tweets()
+    {
+        return $this->hasMany(Tweet::class);
+    }
 }

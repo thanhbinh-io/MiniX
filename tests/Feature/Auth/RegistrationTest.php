@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\User;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -21,6 +22,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
+            'username' => 'testuser',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
@@ -28,5 +30,35 @@ class RegistrationTest extends TestCase
 
         $this->assertAuthenticated();
         $response->assertRedirect(RouteServiceProvider::HOME);
+    }
+
+    public function test_username_must_be_valid_format(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Test User',
+            'username' => 'invalid user!',
+            'email' => 'test@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('username');
+        $this->assertGuest();
+    }
+
+    public function test_username_must_be_unique(): void
+    {
+        User::factory()->create(['username' => 'existinguser']);
+
+        $response = $this->post('/register', [
+            'name' => 'Test User',
+            'username' => 'existinguser',
+            'email' => 'test2@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('username');
+        $this->assertGuest();
     }
 }

@@ -2,76 +2,71 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreTweetRequest;
 use App\Models\Tweet;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TweetController extends Controller
 {
     /**
-     * Display a listing of the resource.
-     *
-     * @return \Illuminate\Http\Response
+     * Display a listing of the tweets.
      */
-    public function index()
+    public function index(): Response
     {
+        $tweets = Tweet::with('user')
+            ->orderBy('id', 'desc')
+            ->get();
+
         return Inertia::render('Welcome', [
-            'tweets' => Tweet::orderBy('id', 'desc')->get()
+            'tweets' => $tweets,
         ]);
     }
 
     /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Store a newly created tweet in storage.
      */
-    public function store(Request $request)
+    public function store(StoreTweetRequest $request): RedirectResponse
     {
-        $file = null;
-        $extension = null;
-        $fileName = null;
-        $path = '';
+        $filePath = null;
+        $isVideo = false;
 
         if ($request->hasFile('file')) {
             $file = $request->file('file');
-            $request->validate([ 'file' => 'required|mimes:jpg,jpeg,png,mp4' ]);
-            $extension = $file->getClientOriginalExtension();
-            $fileName = time() . '.' . $extension;
-            $extension === 'mp4' ? $path = '/videos/' : $path = '/pics/';
+            $extension = strtolower($file->getClientOriginalExtension());
+            $isVideo = ($extension === 'mp4');
+            $folder = $isVideo ? '/videos/' : '/pics/';
+            $fileName = time() . '_' . uniqid() . '.' . $extension;
+
+            $targetDir = public_path($folder);
+            if (! file_exists($targetDir)) {
+                mkdir($targetDir, 0755, true);
+            }
+
+            $file->move($targetDir, $fileName);
+            $filePath = $folder . $fileName;
         }
 
-        $tweet = new Tweet;
+        $request->user()->tweets()->create([
+            'tweet' => $request->input('tweet') ?? '',
+            'file' => $filePath,
+            'is_video' => $isVideo,
+        ]);
 
-        $tweet->name = 'John Weeks Dev';
-        $tweet->handle = '@johnweeksdev';
-        $tweet->image = 'https://yt3.ggpht.com/e9o-24_frmNSSVvjS47rT8qCHgsHNiedqgXbzmrmpsj6H1ketcufR1B9vLXTZRa30krRksPj=s88-c-k-c0x00ffffff-no-rj-mo';
-        $tweet->tweet = $request->input('tweet');
-        if ($fileName) {
-            $tweet->file = $path . $fileName;
-            $tweet->is_video = $extension === 'mp4' ? true : false;
-            $file->move(public_path() . $path, $fileName);
-        }
-        $tweet->comments = rand(5, 500);
-        $tweet->retweets = rand(5, 500);
-        $tweet->likes = rand(5, 500);
-        $tweet->analytics = rand(5, 500);
-
-        $tweet->save();
+        return redirect()->route('tweets.index');
     }
 
     /**
-     * Remove the specified resource from storage.
-     *
-     * @param int $id
-     * @return \Illuminate\Http\Response
+     * Remove the specified tweet from storage.
      */
-    public function destroy($id)
+    public function destroy(Tweet $tweet): RedirectResponse
     {
-        $tweet = Tweet::find($id);
+        $this->authorize('delete', $tweet);
 
-        if (!is_null($tweet->file) && file_exists(public_path() . $tweet->file)) {
-            unlink(public_path() . $tweet->file);
+        if (! empty($tweet->file) && file_exists(public_path($tweet->file))) {
+            @unlink(public_path($tweet->file));
         }
 
         $tweet->delete();

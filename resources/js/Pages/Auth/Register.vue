@@ -8,6 +8,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 
 const form = useForm({
     name: '',
+    username: '',
     email: '',
     password: '',
     password_confirmation: '',
@@ -23,11 +24,16 @@ const submit = () => {
 
 <template>
     <GuestLayout>
-        <Head title="Register" />
+        <Head title="Create your account" />
+
+        <div class="mb-6">
+            <h1 class="text-2xl font-black text-white">Create your account</h1>
+            <p class="text-sm text-gray-400 mt-1">Join the Twitter clone community</p>
+        </div>
 
         <form @submit.prevent="submit">
             <div>
-                <InputLabel for="name" value="Name" />
+                <InputLabel for="name" value="Display Name" />
 
                 <TextInput
                     id="name"
@@ -37,9 +43,30 @@ const submit = () => {
                     required
                     autofocus
                     autocomplete="name"
+                    placeholder="e.g. John Doe"
                 />
 
                 <InputError class="mt-2" :message="form.errors.name" />
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="username" value="Username (@handle)" />
+
+                <div class="relative mt-1">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 font-bold">@</span>
+                    <TextInput
+                        id="username"
+                        type="text"
+                        class="block w-full pl-8"
+                        v-model="form.username"
+                        required
+                        autocomplete="username"
+                        placeholder="username"
+                    />
+                </div>
+                <p class="text-xs text-gray-500 mt-1">3-15 characters, letters, numbers, and underscores only</p>
+
+                <InputError class="mt-2" :message="form.errors.username" />
             </div>
 
             <div class="mt-4">
@@ -51,7 +78,8 @@ const submit = () => {
                     class="mt-1 block w-full"
                     v-model="form.email"
                     required
-                    autocomplete="username"
+                    autocomplete="email"
+                    placeholder="you@example.com"
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
@@ -87,16 +115,16 @@ const submit = () => {
                 <InputError class="mt-2" :message="form.errors.password_confirmation" />
             </div>
 
-            <div class="flex items-center justify-end mt-4">
+            <div class="flex items-center justify-between mt-6">
                 <Link
                     :href="route('login')"
-                    class="underline text-sm text-gray-600 hover:text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    class="text-sm text-[#1C9CEF] hover:underline"
                 >
-                    Already registered?
+                    Already have an account?
                 </Link>
 
                 <PrimaryButton class="ml-4" :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                    Register
+                    Sign up
                 </PrimaryButton>
             </div>
         </form>

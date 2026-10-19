@@ -33,12 +33,18 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'username' => ['required', 'string', 'min:3', 'max:15', 'regex:/^[A-Za-z0-9_]+$/', 'unique:'.User::class],
             'email' => 'required|string|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ], [
+            'username.regex' => 'The username may only contain letters, numbers, and underscores.',
+            'username.min' => 'The username must be at least 3 characters.',
+            'username.max' => 'The username must not exceed 15 characters.',
         ]);
 
         $user = User::create([
             'name' => $request->name,
+            'username' => strtolower($request->username),
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);

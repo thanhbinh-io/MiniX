@@ -1,5 +1,20 @@
 <template>
-    <div class=" w-full lg:inline-block hover:bg-gray-900 p-2 px-4 lg:pr-6 rounded-full cursor-pointer transition duration-200 ease-in-out">
+    <Link
+        v-if="href"
+        :href="href"
+        class="w-full block hover:bg-gray-900 p-2 px-4 lg:pr-6 rounded-full cursor-pointer transition duration-200 ease-in-out"
+    >
+        <div class="flex items-center">
+            <component :is="icon" fillColor="#FFFFFF" :size="30" />
+            <span class="lg:block hidden text-white font-extrabold text-[23px] pl-4 mt-0.5">
+                {{ iconString }}
+            </span>
+        </div>
+    </Link>
+    <div
+        v-else
+        class="w-full lg:inline-block hover:bg-gray-900 p-2 px-4 lg:pr-6 rounded-full cursor-pointer transition duration-200 ease-in-out"
+    >
         <div class="flex items-center">
             <component :is="icon" fillColor="#FFFFFF" :size="30" />
             <span class="lg:block hidden text-white font-extrabold text-[23px] pl-4 mt-0.5">
@@ -10,7 +25,8 @@
 </template>
 
 <script setup>
-import { toRefs } from 'vue'
+import { computed } from 'vue'
+import { Link } from '@inertiajs/vue3'
 import Home from 'vue-material-design-icons/Home.vue';
 import Pound from 'vue-material-design-icons/Pound.vue';
 import BellOutline from 'vue-material-design-icons/BellOutline.vue';
@@ -19,15 +35,18 @@ import AccountOutline from 'vue-material-design-icons/AccountOutline.vue';
 
 const props = defineProps({
     iconString: String,
+    href: {
+        type: String,
+        default: null,
+    },
 })
 
-const { iconString } = toRefs(props)
-
-let icon = null
-
-if (iconString.value === 'Home') icon = Home
-if (iconString.value === 'Explore') icon = Pound
-if (iconString.value === 'Notifications') icon = BellOutline
-if (iconString.value === 'Messages') icon = EmailOutline
-if (iconString.value === 'Profile') icon = AccountOutline
+const icon = computed(() => {
+    if (props.iconString === 'Home') return Home
+    if (props.iconString === 'Explore') return Pound
+    if (props.iconString === 'Notifications') return BellOutline
+    if (props.iconString === 'Messages') return EmailOutline
+    if (props.iconString === 'Profile') return AccountOutline
+    return Home
+})
 </script>
