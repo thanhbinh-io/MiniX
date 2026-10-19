@@ -16,8 +16,26 @@ import Logout from 'vue-material-design-icons/Logout.vue';
 import Account from 'vue-material-design-icons/Account.vue';
 import MenuItem from '@/Components/MenuItem.vue';
 
+const props = defineProps({
+    showHomeHeader: {
+        type: Boolean,
+        default: false,
+    },
+    currentTab: {
+        type: String,
+        default: 'for-you',
+    },
+});
+
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+
+const switchFeedTab = (tab) => {
+    router.visit(route('tweets.index', { tab }), {
+        preserveScroll: true,
+        preserveState: true,
+    });
+};
 
 let showUserMenu = ref(false);
 let createTweet = ref(false);
@@ -124,7 +142,7 @@ const textareaInput = (e) => {
                     <MenuItem iconString="Notifications" />
                     <MenuItem iconString="Messages" />
                     <MenuItem iconString="Bookmarks" :href="user ? route('bookmarks.index') : route('login')" />
-                    <MenuItem iconString="Profile" :href="user ? route('profile.edit') : route('login')" />
+                    <MenuItem iconString="Profile" :href="user ? route('users.profile', user.username) : route('login')" />
 
                     <button
                         @click="openTweetModal"
@@ -157,12 +175,12 @@ const textareaInput = (e) => {
                             </div>
 
                             <Link
-                                :href="route('profile.edit')"
+                                :href="route('users.profile', user.username)"
                                 @click="showUserMenu = false"
                                 class="flex items-center px-3 py-2.5 hover:bg-gray-800 rounded-lg text-sm text-gray-200 cursor-pointer mt-1"
                             >
                                 <Account :size="20" class="mr-2.5 text-gray-400" />
-                                Edit profile
+                                View profile
                             </Link>
 
                             <button
@@ -216,32 +234,36 @@ const textareaInput = (e) => {
             </div>
 
             <!-- Center Timeline Feed Area -->
-            <div class="lg:w-7/12 w-11/12 border-x border-gray-800 relative">
-                <div class="bg-black bg-opacity-70 backdrop-blur-md z-10 absolute w-full">
-                    <div class="border-gray-800 border-b w-full">
-                        <div class="w-full text-white text-[22px] font-extrabold p-4">
-                            Home
-                        </div>
-                        <div class="flex">
-                            <div
-                                class="flex items-center justify-center w-full h-[60px] text-white text-[17px] font-extrabold p-4 hover:bg-gray-500 hover:bg-opacity-30 cursor-pointer transition duration-200 ease-in-out">
-                                <div class="inline-block text-center border-b-4 border-b-[#1C9CEF] h-[60px]">
-                                    <div class="my-auto mt-4">For you</div>
-                                </div>
-                            </div>
-                            <div
-                                class="w-full h-[60px] text-gray-500 text-[17px] font-extrabold p-4 hover:bg-gray-500 hover:bg-opacity-30 cursor-pointer transition duration-200 ease-in-out">
-                                <div class="text-center mt-4">Following</div>
-                            </div>
-                        </div>
+            <div class="lg:w-7/12 w-11/12 border-x border-gray-800 h-[100vh] overflow-y-auto scrollbar-hide relative">
+                <!-- Top Home Bar with For You / Following tabs -->
+                <div v-if="showHomeHeader" class="bg-black/80 backdrop-blur-md z-20 sticky top-0 w-full border-b border-gray-800">
+                    <div class="w-full text-white text-[20px] font-bold px-4 pt-3 pb-1">
+                        Home
+                    </div>
+                    <div class="flex">
+                        <button
+                            type="button"
+                            @click="switchFeedTab('for-you')"
+                            :class="currentTab === 'for-you' ? 'text-white' : 'text-gray-500 hover:text-gray-300'"
+                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-900/60 cursor-pointer transition relative"
+                        >
+                            <span>For you</span>
+                            <div v-if="currentTab === 'for-you'" class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-[#1C9CEF] rounded-full"></div>
+                        </button>
+                        <button
+                            type="button"
+                            @click="switchFeedTab('following')"
+                            :class="currentTab === 'following' ? 'text-white' : 'text-gray-500 hover:text-gray-300'"
+                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-900/60 cursor-pointer transition relative"
+                        >
+                            <span>Following</span>
+                            <div v-if="currentTab === 'following'" class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-[#1C9CEF] rounded-full"></div>
+                        </button>
                     </div>
                 </div>
 
-                <div class="absolute top-0 z-0 h-full w-full overflow-auto scrollbar-hide">
-                    <div class="mt-[126px]"></div>
-                    <slot />
-                    <div class="pb-16"></div>
-                </div>
+                <slot />
+                <div class="pb-24"></div>
             </div>
 
             <!-- Right Trending / Search Area -->

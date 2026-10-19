@@ -19,6 +19,7 @@ class TweetController extends Controller
     {
         $user = $request->user();
         $userId = $user?->id;
+        $tab = $request->query('tab', 'for-you');
 
         $excludedUserIds = collect();
         if ($user) {
@@ -28,14 +29,29 @@ class TweetController extends Controller
             $excludedUserIds = $blockedIds->merge($blockedByIds)->merge($mutedIds)->unique();
         }
 
-        $tweets = Tweet::whereNull('parent_id')
-            ->when($excludedUserIds->isNotEmpty(), fn ($q) => $q->whereNotIn('user_id', $excludedUserIds))
-            ->withInteractionDetails($userId)
+        $query = Tweet::whereNull('parent_id')
+            ->when($excludedUserIds->isNotEmpty(), fn ($q) => $q->whereNotIn('user_id', $excludedUserIds));
+
+        if ($tab === 'following') {
+            if ($user) {
+                $followingIds = $user->following()->pluck('following_id');
+                // Display posts from followed accounts plus author's own posts
+                $feedUserIds = $followingIds->push($user->id)->unique();
+                $query->whereIn('user_id', $feedUserIds);
+            } else {
+                // Guests see an empty following feed
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        $tweets = $query->withInteractionDetails($userId)
             ->orderBy('id', 'desc')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Welcome', [
             'tweets' => $tweets,
+            'currentTab' => $tab,
         ]);
     }
 
@@ -91,17 +107,12 @@ class TweetController extends Controller
         if ($request->hasFile('file')) {
             $file = $request->file('file');
             $extension = strtolower($file->getClientOriginalExtension());
-            $isVideo = ($extension === 'mp4');
-            $folder = $isVideo ? '/videos/' : '/pics/';
-            $fileName = time() . '_' . uniqid() . '.' . $extension;
+            $videoExtensions = ['mp4', 'mov', 'webm'];
+            $isVideo = in_array($extension, $videoExtensions);
 
-            $targetDir = public_path($folder);
-            if (! file_exists($targetDir)) {
-                mkdir($targetDir, 0755, true);
-            }
-
-            $file->move($targetDir, $fileName);
-            $filePath = $folder . $fileName;
+            $directory = $isVideo ? 'tweets/videos' : 'tweets/images';
+            $savedPath = $file->store($directory, 'public');
+            $filePath = '/storage/' . $savedPath;
         }
 
         $parentId = $request->input('parent_id');
@@ -128,10 +139,6 @@ class TweetController extends Controller
     public function destroy(Tweet $tweet): RedirectResponse
     {
         $this->authorize('delete', $tweet);
-
-        if (! empty($tweet->file) && file_exists(public_path($tweet->file))) {
-            @unlink(public_path($tweet->file));
-        }
 
         $tweet->delete();
 

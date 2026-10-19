@@ -95,4 +95,22 @@ class Tweet extends Model
 
         return $this->created_at->diffForHumans();
     }
+
+    /**
+     * The "booted" method of the model.
+     * Clean up attached media file from storage on tweet deletion.
+     */
+    protected static function booted()
+    {
+        static::deleting(function (Tweet $tweet) {
+            if (! empty($tweet->file)) {
+                if (str_starts_with($tweet->file, '/storage/')) {
+                    $relativePath = str_replace('/storage/', '', $tweet->file);
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($relativePath);
+                } elseif (file_exists(public_path($tweet->file))) {
+                    @unlink(public_path($tweet->file));
+                }
+            }
+        });
+    }
 }
