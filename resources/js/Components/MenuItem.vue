@@ -5,7 +5,15 @@
         class="w-full block hover:bg-gray-900 p-2 px-4 lg:pr-6 rounded-full cursor-pointer transition duration-200 ease-in-out"
     >
         <div class="flex items-center">
-            <component :is="icon" fillColor="#FFFFFF" :size="30" />
+            <div class="relative">
+                <component :is="icon" fillColor="#FFFFFF" :size="30" />
+                <span
+                    v-if="badgeCount > 0"
+                    class="absolute -top-1 -right-1 bg-[#1C9CEF] text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center"
+                >
+                    {{ badgeCount > 99 ? '99+' : badgeCount }}
+                </span>
+            </div>
             <span class="lg:block hidden text-white font-extrabold text-[23px] pl-4 mt-0.5">
                 {{ iconString }}
             </span>
@@ -16,7 +24,15 @@
         class="w-full lg:inline-block hover:bg-gray-900 p-2 px-4 lg:pr-6 rounded-full cursor-pointer transition duration-200 ease-in-out"
     >
         <div class="flex items-center">
-            <component :is="icon" fillColor="#FFFFFF" :size="30" />
+            <div class="relative">
+                <component :is="icon" fillColor="#FFFFFF" :size="30" />
+                <span
+                    v-if="badgeCount > 0"
+                    class="absolute -top-1 -right-1 bg-[#1C9CEF] text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full min-w-[18px] text-center"
+                >
+                    {{ badgeCount > 99 ? '99+' : badgeCount }}
+                </span>
+            </div>
             <span class="lg:block hidden text-white font-extrabold text-[23px] pl-4 mt-0.5">
                 {{ iconString }}
             </span>
@@ -39,6 +55,10 @@ const props = defineProps({
     href: {
         type: String,
         default: null,
+    },
+    badgeCount: {
+        type: Number,
+        default: 0,
     },
 })
 

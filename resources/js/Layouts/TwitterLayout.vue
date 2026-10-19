@@ -29,12 +29,24 @@ const props = defineProps({
 
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
+const unreadNotificationsCount = computed(() => page.props.auth?.unread_notifications_count || 0);
 
 const switchFeedTab = (tab) => {
     router.visit(route('tweets.index', { tab }), {
         preserveScroll: true,
         preserveState: true,
     });
+};
+
+const searchQuery = ref('');
+
+const executeSearch = () => {
+    if (!searchQuery.value.trim()) return;
+    router.visit(route('search', { q: searchQuery.value.trim() }));
+};
+
+const searchTag = (tag) => {
+    router.visit(route('search', { q: tag }));
 };
 
 let showUserMenu = ref(false);
@@ -138,8 +150,8 @@ const textareaInput = (e) => {
                     </div>
 
                     <MenuItem iconString="Home" href="/" />
-                    <MenuItem iconString="Explore" />
-                    <MenuItem iconString="Notifications" />
+                    <MenuItem iconString="Explore" :href="route('explore')" />
+                    <MenuItem iconString="Notifications" :href="user ? route('notifications.index') : route('login')" :badgeCount="unreadNotificationsCount" />
                     <MenuItem iconString="Messages" />
                     <MenuItem iconString="Bookmarks" :href="user ? route('bookmarks.index') : route('login')" />
                     <MenuItem iconString="Profile" :href="user ? route('users.profile', user.username) : route('login')" />
@@ -268,15 +280,16 @@ const textareaInput = (e) => {
 
             <!-- Right Trending / Search Area -->
             <div class="lg:block hidden lg:w-4/12 h-screen border-l border-gray-800 pl-4">
-                <div class="w-full p-1 mt-2 px-4 lg:flex items-center rounded-full hidden bg-[#212327]">
+                <form @submit.prevent="executeSearch" class="w-full p-1 mt-2 px-4 lg:flex items-center rounded-full hidden bg-[#212327] focus-within:ring-1 focus-within:ring-[#1C9CEF]">
                     <Magnify fillColor="#5e5c5c" :size="25"/>
                     <input
+                        v-model="searchQuery"
                         class="
                             appearance-none
                             w-full
                             border-0
                             py-2
-                            bg-[#212327]
+                            bg-transparent
                             text-gray-100
                             placeholder-gray-500
                             leading-tight
@@ -285,32 +298,32 @@ const textareaInput = (e) => {
                         type="text"
                         placeholder="Search Twitter"
                     >
-                </div>
+                </form>
 
                 <div class="w-full mt-4 rounded-2xl lg:block hidden bg-[#212327] p-4">
                     <div class="w-full text-white font-extrabold mb-4 text-[20px]">What's happening</div>
 
-                    <div class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
+                    <div @click="searchTag('#TwitterClone')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
                         <div class="text-[13px] text-gray-400">Technology · Trending</div>
                         <div class="text-white font-bold text-[15px]">#TwitterClone</div>
                         <div class="text-[13px] text-gray-400">Laravel 9 + Vue 3</div>
                     </div>
 
-                    <div class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
+                    <div @click="searchTag('#Laravel')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
                         <div class="text-[13px] text-gray-400">Web Development · Trending</div>
-                        <div class="text-white font-bold text-[15px]">Inertia.js</div>
+                        <div class="text-white font-bold text-[15px]">#Laravel</div>
                         <div class="text-[13px] text-gray-400">Full-stack Monolith</div>
                     </div>
 
-                    <div class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
+                    <div @click="searchTag('#TailwindCSS')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
                         <div class="text-[13px] text-gray-400">Design · Trending</div>
-                        <div class="text-white font-bold text-[15px]">TailwindCSS</div>
+                        <div class="text-white font-bold text-[15px]">#TailwindCSS</div>
                         <div class="text-[13px] text-gray-400">Modern Dark Theme</div>
                     </div>
 
-                    <div class="text-[#1C9CEF] text-sm pt-2 hover:underline cursor-pointer">
+                    <Link :href="route('explore')" class="text-[#1C9CEF] text-sm pt-2 hover:underline cursor-pointer block">
                         Show more
-                    </div>
+                    </Link>
                 </div>
             </div>
         </div>

@@ -27,6 +27,11 @@ class RetweetController extends Controller
                 'tweet_id' => $tweet->id,
             ]);
             $retweeted = true;
+
+            // Notify tweet author if not retweeting own tweet
+            if ($tweet->user_id !== $userId && $tweet->user) {
+                $tweet->user->notify(new \App\Notifications\AppActivityNotification($request->user(), 'retweet', $tweet));
+            }
         }
 
         if ($request->wantsJson()) {

@@ -27,6 +27,11 @@ class LikeController extends Controller
                 'tweet_id' => $tweet->id,
             ]);
             $liked = true;
+
+            // Notify tweet author if not liking own tweet
+            if ($tweet->user_id !== $userId && $tweet->user) {
+                $tweet->user->notify(new \App\Notifications\AppActivityNotification($request->user(), 'like', $tweet));
+            }
         }
 
         if ($request->wantsJson()) {

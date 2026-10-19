@@ -118,7 +118,7 @@ class TweetController extends Controller
         $parentId = $request->input('parent_id');
         $quoteOfId = $request->input('quote_of_id');
 
-        $request->user()->tweets()->create([
+        $newTweet = $request->user()->tweets()->create([
             'parent_id' => $parentId,
             'quote_of_id' => $quoteOfId,
             'tweet' => $request->input('tweet') ?? '',
@@ -127,6 +127,10 @@ class TweetController extends Controller
         ]);
 
         if ($parentId) {
+            $parent = Tweet::find($parentId);
+            if ($parent && $parent->user_id !== $request->user()->id && $parent->user) {
+                $parent->user->notify(new \App\Notifications\AppActivityNotification($request->user(), 'reply', $newTweet));
+            }
             return redirect()->back();
         }
 

@@ -31,6 +31,9 @@ class FollowController extends Controller
         } else {
             $currentUser->following()->attach($user->id);
             $following = true;
+
+            // Notify target user
+            $user->notify(new \App\Notifications\AppActivityNotification($currentUser, 'follow'));
         }
 
         if ($request->wantsJson()) {
