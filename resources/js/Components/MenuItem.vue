@@ -31,6 +31,7 @@ import Home from 'vue-material-design-icons/Home.vue';
 import Pound from 'vue-material-design-icons/Pound.vue';
 import BellOutline from 'vue-material-design-icons/BellOutline.vue';
 import EmailOutline from 'vue-material-design-icons/EmailOutline.vue';
+import BookmarkOutline from 'vue-material-design-icons/BookmarkOutline.vue';
 import AccountOutline from 'vue-material-design-icons/AccountOutline.vue';
 
 const props = defineProps({
@@ -46,6 +47,7 @@ const icon = computed(() => {
     if (props.iconString === 'Explore') return Pound
     if (props.iconString === 'Notifications') return BellOutline
     if (props.iconString === 'Messages') return EmailOutline
+    if (props.iconString === 'Bookmarks') return BookmarkOutline
     if (props.iconString === 'Profile') return AccountOutline
     return Home
 })

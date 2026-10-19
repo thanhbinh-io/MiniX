@@ -80,4 +80,34 @@ class User extends Authenticatable
     {
         return $this->hasMany(Tweet::class);
     }
+
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function retweets()
+    {
+        return $this->hasMany(Retweet::class);
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function likedTweets()
+    {
+        return $this->belongsToMany(Tweet::class, 'likes')->withTimestamps();
+    }
+
+    public function retweetedTweets()
+    {
+        return $this->belongsToMany(Tweet::class, 'retweets')->withTimestamps();
+    }
+
+    public function bookmarkedTweets()
+    {
+        return $this->belongsToMany(Tweet::class, 'bookmarks')->withTimestamps();
+    }
 }

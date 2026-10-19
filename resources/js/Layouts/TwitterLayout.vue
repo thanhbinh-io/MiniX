@@ -123,6 +123,7 @@ const textareaInput = (e) => {
                     <MenuItem iconString="Explore" />
                     <MenuItem iconString="Notifications" />
                     <MenuItem iconString="Messages" />
+                    <MenuItem iconString="Bookmarks" :href="user ? route('bookmarks.index') : route('login')" />
                     <MenuItem iconString="Profile" :href="user ? route('profile.edit') : route('login')" />
 
                     <button

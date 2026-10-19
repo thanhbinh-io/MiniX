@@ -26,6 +26,8 @@ class StoreTweetRequest extends FormRequest
         return [
             'tweet' => ['required_without:file', 'nullable', 'string', 'max:280'],
             'file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,mp4', 'max:51200'],
+            'parent_id' => ['nullable', 'exists:tweets,id'],
+            'quote_of_id' => ['nullable', 'exists:tweets,id'],
         ];
     }
 

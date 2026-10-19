@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreTweetRequest;
 use App\Models\Tweet;
+use App\Models\TweetView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -12,11 +13,14 @@ use Inertia\Response;
 class TweetController extends Controller
 {
     /**
-     * Display a listing of the tweets.
+     * Display a listing of the top-level tweets.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $tweets = Tweet::with('user')
+        $userId = $request->user()?->id;
+
+        $tweets = Tweet::whereNull('parent_id')
+            ->withInteractionDetails($userId)
             ->orderBy('id', 'desc')
             ->get();
 
@@ -26,7 +30,48 @@ class TweetController extends Controller
     }
 
     /**
-     * Store a newly created tweet in storage.
+     * Display a single tweet with its replies thread.
+     */
+    public function show(Request $request, $username, $id): Response
+    {
+        $userId = $request->user()?->id;
+        $ip = $request->ip();
+        $sessionId = $request->session()->getId();
+
+        $tweet = Tweet::where('id', $id)
+            ->withInteractionDetails($userId)
+            ->firstOrFail();
+
+        // View count deduplication: check if recorded in last 2 hours
+        $recentView = TweetView::where('tweet_id', $tweet->id)
+            ->when($userId, fn ($q) => $q->where('user_id', $userId))
+            ->when(! $userId, fn ($q) => $q->where('ip_address', $ip)->where('session_id', $sessionId))
+            ->where('created_at', '>=', now()->subHours(2))
+            ->exists();
+
+        if (! $recentView) {
+            TweetView::create([
+                'tweet_id' => $tweet->id,
+                'user_id' => $userId,
+                'ip_address' => $ip,
+                'session_id' => $sessionId,
+            ]);
+            $tweet->loadCount('views');
+        }
+
+        $replies = $tweet->replies()
+            ->withInteractionDetails($userId)
+            ->orderBy('id', 'asc')
+            ->get();
+
+        return Inertia::render('Tweet/Show', [
+            'tweet' => $tweet,
+            'replies' => $replies,
+        ]);
+    }
+
+    /**
+     * Store a newly created tweet or reply in storage.
      */
     public function store(StoreTweetRequest $request): RedirectResponse
     {
@@ -49,11 +94,20 @@ class TweetController extends Controller
             $filePath = $folder . $fileName;
         }
 
+        $parentId = $request->input('parent_id');
+        $quoteOfId = $request->input('quote_of_id');
+
         $request->user()->tweets()->create([
+            'parent_id' => $parentId,
+            'quote_of_id' => $quoteOfId,
             'tweet' => $request->input('tweet') ?? '',
             'file' => $filePath,
             'is_video' => $isVideo,
         ]);
+
+        if ($parentId) {
+            return redirect()->back();
+        }
 
         return redirect()->route('tweets.index');
     }
@@ -71,6 +125,6 @@ class TweetController extends Controller
 
         $tweet->delete();
 
-        return redirect()->route('tweets.index');
+        return redirect()->back();
     }
 }
