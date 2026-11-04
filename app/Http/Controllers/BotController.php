@@ -9,7 +9,7 @@ use Inertia\Inertia;
 class BotController extends Controller
 {
     /**
-     * Display the Grok AI Bot chat page.
+     * Display the MiniX AI Bot chat page.
      */
     public function index(Request $request)
     {
@@ -66,7 +66,7 @@ class BotController extends Controller
                         'systemInstruction' => [
                             'parts' => [
                                 [
-                                    'text' => 'Bạn là Grok AI - Trợ lý trí tuệ nhân tạo thông minh được tích hợp trực tiếp vào mạng xã hội Twitter Clone. Bạn luôn trả lời thân thiện, lịch thiệp, thông minh, ngắn gọn và hữu ích bằng Tiếng Việt (hoặc ngôn ngữ người dùng nhập). Bạn có thể giải đáp kiến thức tổng quát, viết tweet, gợi ý ý tưởng truyền thông và hỗ trợ lập trình.'
+                                    'text' => 'Bạn là MiniX AI - Trợ lý trí tuệ nhân tạo thông minh được tích hợp trực tiếp vào mạng xã hội MiniX. Bạn luôn trả lời thân thiện, lịch thiệp, thông minh, ngắn gọn và hữu ích bằng Tiếng Việt (hoặc ngôn ngữ người dùng nhập). Bạn có thể giải đáp kiến thức tổng quát, viết tweet, gợi ý ý tưởng truyền thông và hỗ trợ lập trình.'
                                 ]
                             ]
                         ],

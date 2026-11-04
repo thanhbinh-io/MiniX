@@ -54,7 +54,7 @@ class BotTest extends TestCase
                     [
                         'content' => [
                             'parts' => [
-                                ['text' => 'Chào bạn! Tôi là Grok AI đây.']
+                                ['text' => 'Chào bạn! Tôi là MiniX AI đây.']
                             ]
                         ]
                     ]
@@ -65,7 +65,7 @@ class BotTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->post('/bot/chat', [
-            'message' => 'Xin chào Grok',
+            'message' => 'Xin chào MiniX',
         ]);
 
         $response->assertRedirect();
@@ -74,9 +74,9 @@ class BotTest extends TestCase
         $this->assertIsArray($messages);
         $this->assertCount(2, $messages);
         $this->assertEquals('user', $messages[0]['role']);
-        $this->assertEquals('Xin chào Grok', $messages[0]['content']);
+        $this->assertEquals('Xin chào MiniX', $messages[0]['content']);
         $this->assertEquals('assistant', $messages[1]['role']);
-        $this->assertEquals('Chào bạn! Tôi là Grok AI đây.', $messages[1]['content']);
+        $this->assertEquals('Chào bạn! Tôi là MiniX AI đây.', $messages[1]['content']);
     }
 
     public function test_handles_api_failure_gracefully()

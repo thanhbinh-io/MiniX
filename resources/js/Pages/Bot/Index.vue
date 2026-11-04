@@ -1,5 +1,5 @@
 <template>
-    <Head title="Grok AI / X" />
+    <Head title="MiniX AI / X" />
 
     <TwitterLayout>
         <div class="flex flex-col h-[100vh] bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-200">
@@ -11,7 +11,7 @@
                     </div>
                     <div>
                         <div class="flex items-center space-x-1.5">
-                            <h1 class="text-lg font-black tracking-tight text-gray-900 dark:text-white">Grok AI</h1>
+                            <h1 class="text-lg font-black tracking-tight text-gray-900 dark:text-white">MiniX AI</h1>
                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300">
                                 3.5 Flash
                             </span>
@@ -50,7 +50,7 @@
                             <RobotOutline :size="38" />
                         </div>
                         <h2 class="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white">
-                            Grok AI có thể giúp gì cho bạn?
+                            MiniX AI có thể giúp gì cho bạn?
                         </h2>
                         <p class="text-sm md:text-base text-gray-500 dark:text-gray-400 max-w-md mx-auto">
                             Trợ lý thông minh hỗ trợ giải đáp thắc mắc, sáng tạo tweet viral, phân tích mã nguồn và trò chuyện.
@@ -161,7 +161,7 @@
                         <RobotOutline :size="18" />
                     </div>
                     <div class="bg-gray-100 dark:bg-[#16181C] border border-gray-200 dark:border-gray-800 rounded-2xl rounded-tl-xs px-4 py-3 flex items-center space-x-2">
-                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Grok đang phản hồi</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400 font-medium">MiniX AI đang phản hồi</span>
                         <div class="flex space-x-1">
                             <span class="w-1.5 h-1.5 bg-[#1D9BF0] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                             <span class="w-1.5 h-1.5 bg-[#1D9BF0] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
@@ -180,7 +180,7 @@
                             v-model="form.message"
                             @keydown.enter.prevent="handleEnter"
                             rows="1"
-                            placeholder="Hỏi Grok bất cứ điều gì... (Enter để gửi, Shift+Enter xuống dòng)"
+                            placeholder="Hỏi MiniX AI bất cứ điều gì... (Enter để gửi, Shift+Enter xuống dòng)"
                             class="w-full py-3 pl-4 pr-12 bg-transparent text-gray-900 dark:text-white placeholder-gray-500 text-sm md:text-[15px] resize-none focus:outline-none border-0 focus:ring-0 max-h-36 overflow-y-auto leading-relaxed"
                             :disabled="isSending"
                         ></textarea>
@@ -201,7 +201,7 @@
 
                     <!-- Footer Disclaimer -->
                     <div class="text-center text-[11px] text-gray-400 dark:text-gray-500">
-                        Grok AI có thể đưa ra câu trả lời chưa chính xác. Vui lòng kiểm chứng lại các thông tin quan trọng.
+                        MiniX AI có thể đưa ra câu trả lời chưa chính xác. Vui lòng kiểm chứng lại các thông tin quan trọng.
                     </div>
                 </form>
             </div>

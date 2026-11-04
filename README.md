@@ -1,6 +1,6 @@
 # 🐦 MiniX – Mạng xã hội X (Twitter) Clone Full-Stack
 
-> Dự án xây dựng nền tảng mạng xã hội hiện đại lấy cảm hứng 100% từ giao diện và trải nghiệm của **X.com (Twitter)**, tích hợp trợ lý trí tuệ nhân tạo **Grok AI (Google Gemini)**, hệ thống **nhắn tin thời gian thực đa thiết bị**, **cài đặt quyền riêng tư nâng cao** và **bảng điều khiển quản trị viên**.
+> Dự án xây dựng nền tảng mạng xã hội hiện đại lấy cảm hứng 100% từ giao diện và trải nghiệm của **X.com (Twitter)**, tích hợp trợ lý trí tuệ nhân tạo **MiniX AI (Google Gemini)**, hệ thống **nhắn tin thời gian thực đa thiết bị**, **cài đặt quyền riêng tư nâng cao** và **bảng điều khiển quản trị viên**.
 
 ---
 
@@ -32,7 +32,7 @@
 
 ## 🚀 Các chức năng chính nổi bật
 
-### 1. 🤖 Trợ lý AI Thông minh (Grok / Bot)
+### 1. 🤖 Trợ lý AI Thông minh (MiniX AI / Bot)
 - **Menu riêng trên Sidebar:** Nút bấm **Bot** chuyên dụng tại thanh điều hướng bên trái.
 - **Giao diện chuẩn Grok (X.com):** Trang chat riêng biệt `/bot` với huy hiệu phiên bản AI và đèn báo trạng thái trực tuyến.
 - **Tính năng phong phú:**
@@ -168,7 +168,7 @@ DB_DATABASE=twitter-clone
 DB_USERNAME=root
 DB_PASSWORD=
 
-# Khóa kết nối Chatbot Grok AI (Google Gemini API)
+# Khóa kết nối Chatbot MiniX AI (Google Gemini API)
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-3.5-flash-lite
 ```

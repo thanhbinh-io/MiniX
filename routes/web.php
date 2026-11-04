@@ -33,7 +33,7 @@ Route::middleware(['auth', 'check.suspended'])->group(function () {
     Route::post('/tweets/{tweet}/bookmark', [BookmarkController::class, 'toggle'])->name('tweets.bookmark');
     Route::get('/bookmarks', [BookmarkController::class, 'index'])->name('bookmarks.index');
 
-    // AI Assistant (Grok / Bot)
+    // AI Assistant (MiniX AI / Bot)
     Route::get('/bot', [BotController::class, 'index'])->name('bot.index');
     Route::post('/bot/chat', [BotController::class, 'chat'])->name('bot.chat');
     Route::post('/bot/clear', [BotController::class, 'clear'])->name('bot.clear');
