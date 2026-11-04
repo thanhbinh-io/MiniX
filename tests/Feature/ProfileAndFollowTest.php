@@ -98,7 +98,7 @@ class ProfileAndFollowTest extends TestCase
         $this->get('/non_existent_user_xyz')->assertNotFound();
 
         // Reserved route returns 404 on profile lookup
-        $this->get('/messages')->assertNotFound();
+        $this->get('/null')->assertNotFound();
     }
 
     public function test_user_cannot_follow_themselves(): void

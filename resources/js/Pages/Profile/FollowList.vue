@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import TwitterLayout from '@/Layouts/TwitterLayout.vue';
@@ -15,21 +15,27 @@ const props = defineProps({
         default: 'followers', // 'followers' | 'following'
     },
     users: {
-        type: Array,
-        default: () => [],
+        type: [Object, Array],
+        default: () => ({ data: [] }),
     },
 });
 
 const page = usePage();
 const currentUser = computed(() => page.props.auth?.user);
+const userList = computed(() => Array.isArray(props.users) ? props.users : (props.users?.data || []));
 
 // Keep track of following state and hover state per user
 const followingMap = ref({});
 const hoverMap = ref({});
 
-props.users.forEach((u) => {
-    followingMap.value[u.id] = !!u.is_following;
-});
+const initFollowingMap = () => {
+    userList.value.forEach((u) => {
+        followingMap.value[u.id] = !!u.is_following;
+    });
+};
+
+initFollowingMap();
+watch(userList, initFollowingMap, { deep: true });
 
 const isFollowing = (userId) => !!followingMap.value[userId];
 const isHovering = (userId) => !!hoverMap.value[userId];
@@ -108,9 +114,9 @@ const toggleFollow = async (user) => {
             </div>
 
             <!-- User List -->
-            <div v-if="users && users.length > 0" class="divide-y divide-gray-800">
+            <div v-if="userList && userList.length > 0" class="divide-y divide-gray-800">
                 <div
-                    v-for="user in users"
+                    v-for="user in userList"
                     :key="user.id"
                     class="flex items-start px-4 py-3 hover:bg-gray-950 transition"
                 >
@@ -177,6 +183,21 @@ const toggleFollow = async (user) => {
                             : `Following accounts is an easy way to curate your timeline and know what's happening.`
                     }}
                 </p>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="users?.links && users.links.length > 3" class="p-6 flex justify-center space-x-2">
+                <Link
+                    v-for="link in users.links"
+                    :key="link.label"
+                    :href="link.url || '#'"
+                    v-html="link.label"
+                    :class="[
+                        'px-3.5 py-1.5 rounded-full text-xs font-semibold border transition',
+                        link.active ? 'bg-[#1C9CEF] border-[#1C9CEF] text-white' : 'border-gray-700 text-gray-400 hover:text-white',
+                        !link.url ? 'opacity-40 pointer-events-none' : ''
+                    ]"
+                />
             </div>
         </div>
     </TwitterLayout>

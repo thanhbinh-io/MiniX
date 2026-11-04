@@ -27,13 +27,15 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string'],
             'password' => ['required', 'string'],
         ];
     }
 
     /**
      * Attempt to authenticate the request's credentials.
+     * Supports both email and username login.
+     * Blocks suspended accounts immediately.
      *
      * @throws \Illuminate\Validation\ValidationException
      */
@@ -41,11 +43,30 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        $loginInput = $this->input('email');
+        $field = filter_var($loginInput, FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        $credentials = [
+            $field => $loginInput,
+            'password' => $this->input('password'),
+        ];
+
+        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
+            ]);
+        }
+
+        // Check if account is suspended
+        $user = Auth::user();
+        if ($user && $user->status === 'suspended') {
+            Auth::logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'Tài khoản của bạn đã bị đình chỉ do vi phạm quy định cộng đồng.',
             ]);
         }
 

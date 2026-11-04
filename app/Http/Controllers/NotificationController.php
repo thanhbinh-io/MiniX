@@ -19,14 +19,15 @@ class NotificationController extends Controller
 
         $notifications = $user->notifications()
             ->latest()
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        // Mark unread notifications as read
+        // Mark unread notifications as read when visited
         $user->unreadNotifications->markAsRead();
 
         return Inertia::render('Notifications', [
             'notifications' => $notifications,
-            'unreadCount' => $unreadCount,
+            'unreadCount'   => $unreadCount,
         ]);
     }
 
@@ -35,8 +36,8 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(Request $request)
     {
-        $request->user()->unreadNotifications->markAsRead();
+        $request->user()->unreadNotifications()->update(['read_at' => now()]);
 
-        return back();
+        return back()->with('success', 'Đã đánh dấu tất cả thông báo là đã đọc.');
     }
 }

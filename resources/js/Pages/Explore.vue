@@ -46,9 +46,13 @@ const clickTrend = (topic) => {
                     />
                 </form>
 
-                <button type="button" class="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition cursor-pointer">
+                <Link
+                    :href="route('settings.account')"
+                    class="p-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition cursor-pointer"
+                    title="Explore settings"
+                >
                     <CogOutline :size="20" />
-                </button>
+                </Link>
             </div>
 
             <!-- Trends List Section -->
@@ -57,19 +61,23 @@ const clickTrend = (topic) => {
                     Trends for you
                 </div>
 
-                <div class="divide-y divide-gray-900">
+                <div v-if="trends && trends.length > 0" class="divide-y divide-gray-900">
                     <div
                         v-for="(trend, idx) in trends"
                         :key="idx"
                         @click="clickTrend(trend.topic)"
-                        class="px-4 py-3 hover:bg-gray-950 transition cursor-pointer flex justify-between items-center"
+                        class="px-4 py-3 hover:bg-gray-900 transition cursor-pointer flex justify-between items-center"
                     >
                         <div>
                             <div class="text-xs text-gray-500">{{ trend.category }}</div>
                             <div class="text-white font-bold text-[15px] mt-0.5">{{ trend.topic }}</div>
-                            <div class="text-xs text-gray-500 mt-0.5">{{ trend.tweets_count }} posts</div>
+                            <div class="text-xs text-gray-500 mt-0.5">{{ trend.tweets_count }}</div>
                         </div>
                     </div>
+                </div>
+
+                <div v-else class="px-4 py-6 text-sm text-gray-500 text-center">
+                    Chưa có chủ đề xu hướng nào. Hãy đăng bài viết kèm thẻ #hashtag để tạo xu hướng mới!
                 </div>
             </div>
 

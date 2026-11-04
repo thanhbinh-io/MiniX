@@ -72,6 +72,7 @@ const updatePassword = () => {
                 />
 
                 <InputError :message="form.errors.password" class="mt-2" />
+                <p class="text-xs text-gray-500 mt-1">8-16 characters, at least 1 uppercase, 1 lowercase, and 1 symbol (@, #, $, ...)</p>
             </div>
 
             <div>

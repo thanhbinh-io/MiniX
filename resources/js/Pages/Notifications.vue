@@ -7,6 +7,8 @@ import Cached from 'vue-material-design-icons/Cached.vue';
 import MessageOutline from 'vue-material-design-icons/MessageOutline.vue';
 import AccountPlus from 'vue-material-design-icons/AccountPlus.vue';
 import CheckAll from 'vue-material-design-icons/CheckAll.vue';
+import FormatQuoteClose from 'vue-material-design-icons/FormatQuoteClose.vue';
+import At from 'vue-material-design-icons/At.vue';
 
 const props = defineProps({
     notifications: {
@@ -69,6 +71,8 @@ const markAllRead = () => {
                         <Cached v-else-if="notif.data.type === 'retweet'" fillColor="#00BA7C" :size="24" />
                         <MessageOutline v-else-if="notif.data.type === 'reply'" fillColor="#1C9CEF" :size="24" />
                         <AccountPlus v-else-if="notif.data.type === 'follow'" fillColor="#8B5CF6" :size="24" />
+                        <FormatQuoteClose v-else-if="notif.data.type === 'quote'" fillColor="#F59E0B" :size="24" />
+                        <At v-else-if="notif.data.type === 'mention'" fillColor="#10B981" :size="24" />
                         <div v-else class="w-6 h-6 rounded-full bg-blue-500"></div>
                     </div>
 
@@ -92,12 +96,18 @@ const markAllRead = () => {
                             <span v-else-if="notif.data.type === 'retweet'"> reposted your post</span>
                             <span v-else-if="notif.data.type === 'reply'"> replied to your post</span>
                             <span v-else-if="notif.data.type === 'follow'"> followed you</span>
+                            <span v-else-if="notif.data.type === 'quote'"> quoted your post</span>
+                            <span v-else-if="notif.data.type === 'mention'"> mentioned you in a post</span>
                         </div>
 
-                        <!-- Tweet text preview if available -->
-                        <div v-if="notif.data.tweet_text" class="text-sm text-gray-500 mt-1 line-clamp-2">
-                            {{ notif.data.tweet_text }}
-                        </div>
+                        <!-- Tweet text preview and click-through link if available -->
+                        <Link
+                            v-if="notif.data.tweet_id"
+                            :href="`/${notif.data.sender_username}/status/${notif.data.tweet_id}`"
+                            class="block text-sm text-gray-400 hover:text-white mt-1 line-clamp-2 transition bg-gray-900/50 p-2.5 rounded-xl border border-gray-800"
+                        >
+                            {{ notif.data.tweet_text || 'Xem bài viết...' }}
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -108,8 +118,23 @@ const markAllRead = () => {
                     Nothing to see here — yet
                 </div>
                 <p class="text-sm text-gray-500 leading-relaxed">
-                    From likes to reposts and a whole lot more, this is where all the action about your posts and account will happen.
+                    From likes to reposts, mentions and a whole lot more, this is where all the action about your posts and account will happen.
                 </p>
+            </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="notifications?.links && notifications.links.length > 3" class="p-6 flex justify-center space-x-2">
+                <Link
+                    v-for="link in notifications.links"
+                    :key="link.label"
+                    :href="link.url || '#'"
+                    v-html="link.label"
+                    :class="[
+                        'px-3.5 py-1.5 rounded-full text-xs font-semibold border transition',
+                        link.active ? 'bg-[#1C9CEF] border-[#1C9CEF] text-white' : 'border-gray-700 text-gray-400 hover:text-white',
+                        !link.url ? 'opacity-40 pointer-events-none' : ''
+                    ]"
+                />
             </div>
         </div>
     </TwitterLayout>

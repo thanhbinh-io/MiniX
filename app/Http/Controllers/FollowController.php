@@ -23,6 +23,13 @@ class FollowController extends Controller
             return back()->withErrors(['follow' => 'You cannot follow yourself.']);
         }
 
+        if ($user->status === 'suspended') {
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Cannot follow a suspended user.'], 422);
+            }
+            return back()->withErrors(['follow' => 'Tài khoản này đang bị đình chỉ.']);
+        }
+
         $isFollowing = $currentUser->isFollowing($user);
 
         if ($isFollowing) {
@@ -56,16 +63,17 @@ class FollowController extends Controller
 
         $users = $user->followers()
             ->withCount(['followers', 'following'])
-            ->get()
-            ->map(function ($u) use ($currentUserId) {
-                $u->is_following = $currentUserId ? $u->followers()->where('follower_id', $currentUserId)->exists() : false;
-                return $u;
-            });
+            ->when($currentUserId, function ($q) use ($currentUserId) {
+                $q->withExists(['followers as is_following' => fn ($sub) => $sub->where('follower_id', $currentUserId)]);
+            })
+            ->orderByPivot('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Profile/FollowList', [
             'profileUser' => $user,
-            'type' => 'followers',
-            'users' => $users,
+            'type'        => 'followers',
+            'users'       => $users,
         ]);
     }
 
@@ -79,16 +87,17 @@ class FollowController extends Controller
 
         $users = $user->following()
             ->withCount(['followers', 'following'])
-            ->get()
-            ->map(function ($u) use ($currentUserId) {
-                $u->is_following = $currentUserId ? $u->followers()->where('follower_id', $currentUserId)->exists() : false;
-                return $u;
-            });
+            ->when($currentUserId, function ($q) use ($currentUserId) {
+                $q->withExists(['followers as is_following' => fn ($sub) => $sub->where('follower_id', $currentUserId)]);
+            })
+            ->orderByPivot('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
 
         return Inertia::render('Profile/FollowList', [
             'profileUser' => $user,
-            'type' => 'following',
-            'users' => $users,
+            'type'        => 'following',
+            'users'       => $users,
         ]);
     }
 }

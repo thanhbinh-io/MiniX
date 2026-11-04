@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import FlagOutline from 'vue-material-design-icons/FlagOutline.vue';
 import Heart from 'vue-material-design-icons/Heart.vue';
 import HeartOutline from 'vue-material-design-icons/HeartOutline.vue';
 import ChartBar from 'vue-material-design-icons/ChartBar.vue';
@@ -15,6 +16,10 @@ import TrashCanOutline from 'vue-material-design-icons/TrashCanOutline.vue';
 import PencilOutline from 'vue-material-design-icons/PencilOutline.vue';
 import Close from 'vue-material-design-icons/Close.vue';
 import ImageOutline from 'vue-material-design-icons/ImageOutline.vue';
+import LinkVariant from 'vue-material-design-icons/LinkVariant.vue';
+import Magnify from 'vue-material-design-icons/Magnify.vue';
+import Send from 'vue-material-design-icons/Send.vue';
+import CheckCircle from 'vue-material-design-icons/CheckCircle.vue';
 
 const props = defineProps({
     tweet: {
@@ -43,6 +48,17 @@ const openOptions = ref(false);
 const optionsRef = ref(null);
 const openRetweetMenu = ref(false);
 const retweetMenuRef = ref(null);
+const openShareMenu = ref(false);
+const shareMenuRef = ref(null);
+
+const showSendChatModal = ref(false);
+const chatRecipients = ref([]);
+const isLoadingRecipients = ref(false);
+const searchRecipientQuery = ref('');
+const selectedRecipient = ref(null);
+const chatComment = ref('');
+const isSendingChat = ref(false);
+let searchDebounceTimer = null;
 
 const showReplyModal = ref(false);
 const showQuoteModal = ref(false);
@@ -154,12 +170,100 @@ const toggleBookmark = async () => {
     }
 };
 
-// Share Link
-const copyShareLink = () => {
+// Share Link & Direct Message
+const handleCopyLink = () => {
+    openShareMenu.value = false;
     const username = props.tweet.user?.username || 'user';
     const url = window.location.origin + `/${username}/status/${props.tweet.id}`;
-    navigator.clipboard?.writeText(url);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url);
+    } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
     showToast('Copied link to clipboard');
+};
+
+const copyShareLink = handleCopyLink;
+
+const openSendViaChatModal = async () => {
+    openShareMenu.value = false;
+    if (!currentUser.value) {
+        router.visit(route('login'));
+        return;
+    }
+    showSendChatModal.value = true;
+    selectedRecipient.value = null;
+    chatComment.value = '';
+    searchRecipientQuery.value = '';
+    await fetchRecipients();
+};
+
+const closeSendChatModal = () => {
+    showSendChatModal.value = false;
+    selectedRecipient.value = null;
+    chatComment.value = '';
+    searchRecipientQuery.value = '';
+};
+
+const fetchRecipients = async (q = '') => {
+    isLoadingRecipients.value = true;
+    try {
+        const res = await axios.get(route('messages.recipients'), {
+            params: { q: q.trim() || undefined }
+        });
+        chatRecipients.value = res.data.recipients || [];
+    } catch (err) {
+        console.error('Failed to fetch recipients', err);
+        chatRecipients.value = [];
+    } finally {
+        isLoadingRecipients.value = false;
+    }
+};
+
+const onSearchRecipientInput = () => {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        fetchRecipients(searchRecipientQuery.value);
+    }, 250);
+};
+
+const toggleSelectRecipient = (user) => {
+    if (selectedRecipient.value?.id === user.id) {
+        selectedRecipient.value = null;
+    } else {
+        selectedRecipient.value = user;
+    }
+};
+
+const sendTweetViaChat = async (targetUser = null) => {
+    const recipient = targetUser || selectedRecipient.value;
+    if (!recipient || isSendingChat.value) return;
+
+    isSendingChat.value = true;
+    const username = props.tweet.user?.username || 'user';
+    const tweetUrl = window.location.origin + `/${username}/status/${props.tweet.id}`;
+    const comment = chatComment.value.trim();
+    const messageContent = comment ? `${comment}\n\n${tweetUrl}` : tweetUrl;
+
+    try {
+        await axios.post(route('messages.store'), {
+            receiver_id: recipient.id,
+            message: messageContent,
+        });
+
+        closeSendChatModal();
+        showToast(`Đã gửi bài viết đến @${recipient.username}`);
+    } catch (err) {
+        const errMsg = err.response?.data?.errors?.message || err.response?.data?.message || 'Không thể gửi tin nhắn';
+        showToast(errMsg);
+    } finally {
+        isSendingChat.value = false;
+    }
 };
 
 // Reply Handling
@@ -257,6 +361,135 @@ const handleClickOutside = (e) => {
     if (retweetMenuRef.value && !retweetMenuRef.value.contains(e.target)) {
         openRetweetMenu.value = false;
     }
+    if (shareMenuRef.value && !shareMenuRef.value.contains(e.target)) {
+        openShareMenu.value = false;
+    }
+};
+
+// ─── Report Modal ─────────────────────────────────────────────────────────────
+const showReportModal = ref(false);
+const reportReason = ref('spam');
+const reportDescription = ref('');
+const isSubmittingReport = ref(false);
+const reportReasons = {
+    spam:            'Spam',
+    harassment:      'Quấy rối / Xúc phạm',
+    hate_speech:     'Ngôn ngữ thù địch',
+    misinformation:  'Tin giả / Thông tin sai lệch',
+    nsfw:            'Nội dung không phù hợp (NSFW)',
+    other:           'Khác',
+};
+
+const openReport = () => {
+    openOptions.value = false;
+    if (!currentUser.value) { router.visit(route('login')); return; }
+    showReportModal.value = true;
+};
+
+const submitReport = () => {
+    isSubmittingReport.value = true;
+    router.post(route('reports.store'), {
+        type: 'tweet',
+        tweet_id: props.tweet.id,
+        reason: reportReason.value,
+        description: reportDescription.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showReportModal.value = false;
+            reportReason.value = 'spam';
+            reportDescription.value = '';
+            showToast('Báo cáo đã được gửi thành công!');
+        },
+        onError: (errors) => {
+            showToast(errors.report || 'Đã xảy ra lỗi khi gửi báo cáo.');
+        },
+        onFinish: () => { isSubmittingReport.value = false; },
+    });
+};
+
+// ─── Edit Tweet Modal ─────────────────────────────────────────────────────────
+const showEditModal = ref(false);
+const editText = ref('');
+const editFile = ref(null);
+const editPreview = ref('');
+const removeCurrentFile = ref(false);
+const isSubmittingEdit = ref(false);
+
+const openEditModal = () => {
+    openOptions.value = false;
+    editText.value = props.tweet.tweet || '';
+    editFile.value = null;
+    editPreview.value = props.tweet.file || '';
+    removeCurrentFile.value = false;
+    showEditModal.value = true;
+};
+
+const handleEditFile = (e) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    editFile.value = e.target.files[0];
+    editPreview.value = URL.createObjectURL(e.target.files[0]);
+    removeCurrentFile.value = false;
+};
+
+const removeEditMedia = () => {
+    editFile.value = null;
+    editPreview.value = '';
+    removeCurrentFile.value = true;
+};
+
+const submitEdit = () => {
+    if (!editText.value.trim() && !editPreview.value) {
+        showToast('Bài viết không được để trống.');
+        return;
+    }
+
+    isSubmittingEdit.value = true;
+    const formData = new FormData();
+    formData.append('_method', 'PATCH');
+    formData.append('tweet', editText.value);
+    if (removeCurrentFile.value) {
+        formData.append('remove_file', '1');
+    }
+    if (editFile.value) {
+        formData.append('file', editFile.value);
+    }
+
+    router.post(route('tweets.update', props.tweet.id), formData, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showEditModal.value = false;
+            isSubmittingEdit.value = false;
+            showToast('Đã cập nhật bài viết thành công!');
+        },
+        onError: (errs) => {
+            isSubmittingEdit.value = false;
+            showToast(errs.tweet || errs.file || 'Cập nhật thất bại.');
+        },
+        onFinish: () => {
+            isSubmittingEdit.value = false;
+        }
+    });
+};
+
+const formatTweetText = (text) => {
+    if (!text) return '';
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+
+    escaped = escaped.replace(/@([a-zA-Z0-9_]{3,15})/g, (match, username) => {
+        return `<a href="/${username}" class="text-[#1C9CEF] hover:underline" onclick="event.stopPropagation()">${match}</a>`;
+    });
+
+    escaped = escaped.replace(/#([a-zA-Z0-9_\u00C0-\u024F\u1E00-\u1EFF]+)/gu, (match, tag) => {
+        return `<a href="/search?q=%23${encodeURIComponent(tag)}" class="text-[#1C9CEF] hover:underline" onclick="event.stopPropagation()">${match}</a>`;
+    });
+
+    return escaped;
 };
 
 onMounted(() => {
@@ -271,7 +504,7 @@ onUnmounted(() => {
 <template>
     <div
         @click="goToStatus"
-        class="flex w-full border-b border-gray-800 hover:bg-[#070707] transition duration-150 px-4 py-3 cursor-pointer"
+        class="flex w-full border-b border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-[#070707] transition duration-150 px-4 py-3 cursor-pointer text-gray-900 dark:text-white"
     >
         <!-- Author Avatar -->
         <div class="mr-3 flex-shrink-0">
@@ -290,7 +523,7 @@ onUnmounted(() => {
                 <div class="flex items-center space-x-1.5 truncate">
                     <span
                         @click.stop="router.visit(`/${tweet.user?.username || 'user'}`)"
-                        class="font-bold text-white text-[15px] hover:underline cursor-pointer truncate"
+                        class="font-bold text-gray-900 dark:text-white text-[15px] hover:underline cursor-pointer truncate"
                     >
                         {{ tweet.user?.name || 'User' }}
                     </span>
@@ -315,14 +548,14 @@ onUnmounted(() => {
 
                     <div
                         v-if="openOptions"
-                        class="absolute right-0 mt-1 w-52 bg-black border border-gray-700 rounded-2xl shadow-2xl py-1 z-30"
+                        class="absolute right-0 mt-1 w-52 bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl py-1 z-30"
                     >
                         <Link
                             v-if="isOwner"
                             as="button"
                             method="delete"
                             :href="route('tweets.destroy', { tweet: tweet.id })"
-                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-900 text-red-500 text-sm font-semibold cursor-pointer transition"
+                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 text-red-500 text-sm font-semibold cursor-pointer transition"
                             @click.stop="openOptions = false"
                         >
                             <TrashCanOutline class="mr-2.5" fillColor="#EF4444" :size="18"/>
@@ -330,24 +563,47 @@ onUnmounted(() => {
                         </Link>
 
                         <button
+                            v-if="isOwner"
+                            type="button"
+                            @click.stop="openEditModal"
+                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 text-[#1C9CEF] text-sm font-semibold cursor-pointer transition"
+                        >
+                            <PencilOutline class="mr-2.5" fillColor="#1C9CEF" :size="18"/>
+                            <span>Sửa bài viết</span>
+                        </button>
+
+                        <button
                             type="button"
                             @click.stop="copyShareLink(); openOptions = false;"
-                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-900 text-gray-200 text-sm cursor-pointer transition"
+                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 text-gray-700 dark:text-gray-200 text-sm cursor-pointer transition"
                         >
                             <ShareVariantOutline class="mr-2.5 text-gray-400" :size="18"/>
                             <span>Copy link to tweet</span>
+                        </button>
+
+                        <!-- Report button (only for non-owners who are logged in) -->
+                        <button
+                            v-if="currentUser && !isOwner"
+                            type="button"
+                            @click.stop="openReport"
+                            class="w-full flex items-center px-4 py-2.5 hover:bg-gray-900 text-yellow-500 text-sm cursor-pointer transition"
+                        >
+                            <FlagOutline class="mr-2.5" fillColor="#EAB308" :size="18"/>
+                            <span>Báo cáo bài viết</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Tweet text content -->
-            <div v-if="tweet.tweet" class="text-white text-[15px] leading-relaxed break-words whitespace-pre-line mb-2">
-                {{ tweet.tweet }}
-            </div>
+            <!-- Tweet text content with clickable #hashtags and @mentions -->
+            <div
+                v-if="tweet.tweet"
+                class="text-gray-900 dark:text-white text-[15px] leading-relaxed break-words whitespace-pre-line mb-2"
+                v-html="formatTweetText(tweet.tweet)"
+            ></div>
 
             <!-- Attached Media -->
-            <div v-if="tweet.file" class="my-2 rounded-2xl overflow-hidden border border-gray-800 max-h-[450px]">
+            <div v-if="tweet.file" class="my-2 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 max-h-[450px]">
                 <video
                     v-if="tweet.is_video"
                     controls
@@ -365,7 +621,7 @@ onUnmounted(() => {
             <!-- Quoted Tweet Card (Nested preview) -->
             <div
                 v-if="tweet.quote_of"
-                class="my-2.5 border border-gray-800 hover:border-gray-700 rounded-2xl p-3 bg-black transition"
+                class="my-2.5 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 rounded-2xl p-3 bg-gray-50 dark:bg-black transition"
                 @click.stop="router.visit(`/${tweet.quote_of.user?.username}/status/${tweet.quote_of.id}`)"
             >
                 <div class="flex items-center space-x-2 mb-1.5">
@@ -469,15 +725,54 @@ onUnmounted(() => {
                     <BookmarkOutline v-else :size="18" />
                 </button>
 
-                <!-- Share Button -->
-                <button
-                    type="button"
-                    @click.stop="copyShareLink"
-                    class="p-1.5 rounded-full hover:bg-blue-900/30 hover:text-[#1C9CEF] transition cursor-pointer"
-                    title="Share"
-                >
-                    <ShareVariantOutline :size="18" />
-                </button>
+                <!-- Share Button & Popover -->
+                <div class="relative" ref="shareMenuRef">
+                    <button
+                        type="button"
+                        @click.stop="openShareMenu = !openShareMenu"
+                        :class="openShareMenu ? 'text-[#1C9CEF] bg-blue-900/20' : 'hover:text-[#1C9CEF] hover:bg-blue-900/30'"
+                        class="p-1.5 rounded-full transition cursor-pointer flex items-center justify-center"
+                        title="Share"
+                    >
+                        <ShareVariantOutline :size="18" />
+                    </button>
+
+                    <!-- Share Popover Menu (Matching User's Screenshot) -->
+                    <transition
+                        enter-active-class="transition duration-150 ease-out"
+                        enter-from-class="transform scale-95 opacity-0"
+                        enter-to-class="transform scale-100 opacity-100"
+                        leave-active-class="transition duration-100 ease-in"
+                        leave-from-class="transform scale-100 opacity-100"
+                        leave-to-class="transform scale-95 opacity-0"
+                    >
+                        <div
+                            v-if="openShareMenu"
+                            class="absolute right-0 bottom-full mb-2 w-48 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl py-1.5 z-40 overflow-hidden"
+                            @click.stop
+                        >
+                            <!-- Send via Chat -->
+                            <button
+                                type="button"
+                                @click.stop="openSendViaChatModal"
+                                class="w-full flex items-center px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-[#16181c] text-gray-900 dark:text-white text-[15px] font-semibold transition cursor-pointer text-left group"
+                            >
+                                <MessageOutline class="mr-3 text-gray-700 dark:text-white flex-shrink-0 group-hover:text-[#1C9CEF]" :size="19" />
+                                <span>Send via Chat</span>
+                            </button>
+
+                            <!-- Copy link -->
+                            <button
+                                type="button"
+                                @click.stop="handleCopyLink"
+                                class="w-full flex items-center px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-[#16181c] text-gray-900 dark:text-white text-[15px] font-semibold transition cursor-pointer text-left group"
+                            >
+                                <LinkVariant class="mr-3 text-gray-700 dark:text-white flex-shrink-0 group-hover:text-[#1C9CEF]" :size="19" />
+                                <span>Copy link</span>
+                            </button>
+                        </div>
+                    </transition>
+                </div>
             </div>
         </div>
 
@@ -639,6 +934,327 @@ onUnmounted(() => {
             </div>
         </div>
     </div>
+
+    <!-- ─── Report Modal ──────────────────────────────────────────────────── -->
+    <Teleport to="body">
+        <div
+            v-if="showReportModal"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            @click.self="showReportModal = false"
+        >
+            <div class="bg-gray-950 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+                <div class="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
+                    <h3 class="text-base font-bold">🚨 Báo cáo bài viết</h3>
+                    <button @click="showReportModal = false" class="p-1.5 hover:bg-gray-800 rounded-full text-gray-400">
+                        <Close :size="18" />
+                    </button>
+                </div>
+                <div class="px-6 py-5 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Lý do báo cáo:</label>
+                        <div class="space-y-2">
+                            <label
+                                v-for="(label, key) in reportReasons"
+                                :key="key"
+                                class="flex items-center space-x-3 cursor-pointer group"
+                            >
+                                <input
+                                    type="radio"
+                                    :value="key"
+                                    v-model="reportReason"
+                                    class="accent-[#1C9CEF]"
+                                />
+                                <span class="text-sm text-gray-300 group-hover:text-white transition">{{ label }}</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Mô tả thêm (tuỳ chọn):</label>
+                        <textarea
+                            v-model="reportDescription"
+                            rows="2"
+                            maxlength="500"
+                            placeholder="Thêm thông tin về vấn đề..."
+                            class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#1C9CEF] resize-none"
+                        />
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-t border-gray-800 flex justify-end gap-3">
+                    <button
+                        @click="showReportModal = false"
+                        class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        @click="submitReport"
+                        :disabled="isSubmittingReport"
+                        class="px-5 py-2 text-sm bg-yellow-600 hover:bg-yellow-500 text-white font-semibold rounded-full transition disabled:opacity-50"
+                    >
+                        {{ isSubmittingReport ? 'Đang gửi...' : 'Gửi báo cáo' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <!-- ─── Edit Tweet Modal ──────────────────────────────────────────────── -->
+    <Teleport to="body">
+        <div
+            v-if="showEditModal"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            @click.self="showEditModal = false"
+        >
+            <div class="bg-gray-950 border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+                    <h3 class="text-base font-bold text-white">Chỉnh sửa bài viết</h3>
+                    <button @click="showEditModal = false" class="p-1.5 hover:bg-gray-800 rounded-full text-gray-400">
+                        <Close :size="18" />
+                    </button>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <textarea
+                        v-model="editText"
+                        rows="4"
+                        maxlength="280"
+                        placeholder="Nội dung bài viết..."
+                        class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1C9CEF] resize-none"
+                    ></textarea>
+
+                    <div class="flex justify-between items-center text-xs text-gray-500">
+                        <span>Hỗ trợ thẻ #hashtag và @mention</span>
+                        <span>{{ 280 - (editText ? editText.length : 0) }} ký tự</span>
+                    </div>
+
+                    <!-- Current / New Media Preview -->
+                    <div v-if="editPreview" class="relative rounded-xl overflow-hidden border border-gray-800 max-h-48">
+                        <button
+                            type="button"
+                            @click="removeEditMedia"
+                            class="absolute top-2 right-2 bg-black/80 hover:bg-black p-1.5 rounded-full text-white cursor-pointer z-10 transition"
+                            title="Xóa ảnh này"
+                        >
+                            <Close :size="16" />
+                        </button>
+                        <img :src="editPreview" class="w-full max-h-48 object-cover" />
+                    </div>
+
+                    <!-- File input -->
+                    <div class="flex items-center space-x-2 pt-2">
+                        <label class="cursor-pointer inline-flex items-center space-x-2 text-xs font-semibold text-[#1C9CEF] hover:bg-blue-950/40 px-3 py-1.5 rounded-full border border-blue-900/50 transition">
+                            <ImageOutline :size="18" />
+                            <span>{{ editPreview ? 'Thay ảnh khác' : 'Thêm ảnh' }}</span>
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp,image/gif"
+                                class="hidden"
+                                @change="handleEditFile"
+                            />
+                        </label>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-gray-800 flex justify-end gap-3 bg-gray-950">
+                    <button
+                        @click="showEditModal = false"
+                        class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition"
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        @click="submitEdit"
+                        :disabled="isSubmittingEdit || (!editText.trim() && !editPreview)"
+                        class="px-5 py-2 text-sm bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white font-semibold rounded-full transition disabled:opacity-50"
+                    >
+                        {{ isSubmittingEdit ? 'Đang lưu...' : 'Lưu thay đổi' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </Teleport>
+
+    <!-- ─── Send via Chat Modal ───────────────────────────────────────────── -->
+    <Teleport to="body">
+        <div
+            v-if="showSendChatModal"
+            class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4"
+            @click.self="closeSendChatModal"
+        >
+            <div
+                class="w-full max-w-lg bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl flex flex-col max-h-[88vh] overflow-hidden"
+                @click.stop
+            >
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between px-4 py-3.5 border-b border-gray-200 dark:border-gray-800">
+                    <div class="flex items-center space-x-3">
+                        <button
+                            type="button"
+                            @click="closeSendChatModal"
+                            class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-900 dark:hover:text-white transition cursor-pointer"
+                        >
+                            <Close :size="20" />
+                        </button>
+                        <h2 class="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                            Gửi bài viết qua Tin nhắn
+                        </h2>
+                    </div>
+
+                    <button
+                        type="button"
+                        v-if="selectedRecipient"
+                        @click="sendTweetViaChat()"
+                        :disabled="isSendingChat"
+                        :class="isSendingChat ? 'opacity-50 cursor-not-allowed' : 'hover:bg-[#1A8CD8] cursor-pointer'"
+                        class="bg-[#1C9CEF] text-white text-xs sm:text-sm font-bold px-4 py-1.5 rounded-full transition shadow flex items-center space-x-1.5"
+                    >
+                        <Send :size="16" />
+                        <span>{{ isSendingChat ? 'Đang gửi...' : 'Gửi' }}</span>
+                    </button>
+                </div>
+
+                <!-- Search Input Bar -->
+                <div class="px-4 py-2.5 border-b border-gray-100 dark:border-gray-800/80">
+                    <div class="relative flex items-center">
+                        <Magnify class="absolute left-3 text-gray-400 dark:text-gray-500" :size="20" />
+                        <input
+                            v-model="searchRecipientQuery"
+                            @input="onSearchRecipientInput"
+                            type="text"
+                            placeholder="Tìm kiếm bạn bè theo tên hoặc @username..."
+                            class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-900 border border-transparent focus:border-[#1C9CEF] focus:bg-white dark:focus:bg-black text-gray-900 dark:text-white placeholder-gray-500 rounded-full text-sm outline-none transition"
+                        />
+                    </div>
+                </div>
+
+                <!-- Recipient List -->
+                <div class="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-800/50 min-h-[160px] max-h-[260px]">
+                    <!-- Loading State -->
+                    <div v-if="isLoadingRecipients" class="py-10 text-center text-gray-500 text-sm">
+                        <div class="inline-block w-6 h-6 border-2 border-[#1C9CEF] border-t-transparent rounded-full animate-spin mb-2"></div>
+                        <p>Đang tải danh sách...</p>
+                    </div>
+
+                    <!-- Empty State -->
+                    <div v-else-if="chatRecipients.length === 0" class="py-10 text-center text-gray-500 text-sm px-4">
+                        Không tìm thấy người dùng phù hợp.
+                    </div>
+
+                    <!-- List of Candidates -->
+                    <div
+                        v-else
+                        v-for="user in chatRecipients"
+                        :key="user.id"
+                        @click="toggleSelectRecipient(user)"
+                        :class="selectedRecipient?.id === user.id ? 'bg-blue-50 dark:bg-blue-950/40' : 'hover:bg-gray-50 dark:hover:bg-gray-900/60'"
+                        class="px-4 py-3 flex items-center justify-between cursor-pointer transition select-none"
+                    >
+                        <div class="flex items-center space-x-3 min-w-0 pr-2">
+                            <img
+                                :src="user.avatar_url"
+                                :alt="user.name"
+                                class="w-10 h-10 rounded-full object-cover bg-gray-200 dark:bg-gray-800 flex-shrink-0"
+                            />
+                            <div class="min-w-0">
+                                <div class="font-bold text-gray-900 dark:text-white text-sm truncate">
+                                    {{ user.name }}
+                                </div>
+                                <span class="text-xs text-gray-500 truncate block">
+                                    @{{ user.username }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Action: Quick Send button or Check selection -->
+                        <div class="flex items-center space-x-2 flex-shrink-0" @click.stop>
+                            <button
+                                type="button"
+                                @click="sendTweetViaChat(user)"
+                                :disabled="isSendingChat"
+                                class="px-3 py-1 bg-[#1C9CEF]/10 hover:bg-[#1C9CEF] text-[#1C9CEF] hover:text-white text-xs font-bold rounded-full transition cursor-pointer"
+                            >
+                                Gửi ngay
+                            </button>
+
+                            <button
+                                type="button"
+                                @click="toggleSelectRecipient(user)"
+                                class="p-1 rounded-full transition"
+                            >
+                                <CheckCircle
+                                    v-if="selectedRecipient?.id === user.id"
+                                    class="text-[#1C9CEF]"
+                                    :size="22"
+                                />
+                                <div
+                                    v-else
+                                    class="w-[20px] h-[20px] rounded-full border-2 border-gray-300 dark:border-gray-600 hover:border-[#1C9CEF] transition"
+                                ></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tweet Preview Snippet & Comment Input (Bottom Section) -->
+                <div class="p-3 border-t border-gray-200 dark:border-gray-800 bg-gray-50/70 dark:bg-[#070707]">
+                    <!-- Selected Recipient Tag (if selected) -->
+                    <div v-if="selectedRecipient" class="mb-2 flex items-center justify-between bg-blue-100/60 dark:bg-blue-900/40 text-blue-900 dark:text-blue-200 px-3 py-1.5 rounded-lg text-xs font-medium">
+                        <span class="truncate">
+                            Gửi đến: <strong>{{ selectedRecipient.name }}</strong> (@{{ selectedRecipient.username }})
+                        </span>
+                        <button
+                            type="button"
+                            @click="selectedRecipient = null"
+                            class="text-blue-500 hover:text-blue-700 ml-2 font-bold cursor-pointer"
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    <!-- Mini Tweet Preview Card -->
+                    <div class="p-2.5 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black/60 flex items-start space-x-2.5 mb-2.5">
+                        <img
+                            :src="tweet.user?.avatar_url || 'https://ui-avatars.com/api/?name=User'"
+                            class="w-7 h-7 rounded-full object-cover flex-shrink-0"
+                        />
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center space-x-1.5 text-xs truncate">
+                                <span class="font-bold text-gray-900 dark:text-white truncate">{{ tweet.user?.name }}</span>
+                                <span class="text-gray-500">@{{ tweet.user?.username }}</span>
+                            </div>
+                            <p class="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 mt-0.5 break-words">
+                                {{ tweet.tweet || (tweet.file ? '[File đính kèm]' : '') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Optional Comment Input -->
+                    <div class="flex items-center space-x-2">
+                        <input
+                            v-model="chatComment"
+                            type="text"
+                            maxlength="500"
+                            placeholder="Viết thêm tin nhắn (tùy chọn)..."
+                            class="flex-1 px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-full text-xs sm:text-sm text-gray-900 dark:text-white placeholder-gray-500 outline-none focus:border-[#1C9CEF] transition"
+                            @keydown.enter.prevent="selectedRecipient ? sendTweetViaChat() : null"
+                        />
+
+                        <button
+                            type="button"
+                            @click="sendTweetViaChat()"
+                            :disabled="!selectedRecipient || isSendingChat"
+                            :class="!selectedRecipient || isSendingChat ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[#1A8CD8] cursor-pointer shadow'"
+                            class="bg-[#1C9CEF] text-white p-2 sm:px-4 sm:py-2 rounded-full font-bold text-xs sm:text-sm flex items-center space-x-1 transition flex-shrink-0"
+                            title="Gửi"
+                        >
+                            <Send :size="16" />
+                            <span class="hidden sm:inline">Gửi</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <style scoped>

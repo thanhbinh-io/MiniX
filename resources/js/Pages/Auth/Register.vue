@@ -98,6 +98,7 @@ const submit = () => {
                 />
 
                 <InputError class="mt-2" :message="form.errors.password" />
+                <p class="text-xs text-gray-500 mt-1">8-16 characters, at least 1 uppercase, 1 lowercase, and 1 symbol (@, #, $, ...)</p>
             </div>
 
             <div class="mt-4">

@@ -11,7 +11,7 @@ use Inertia\Response;
 class BookmarkController extends Controller
 {
     /**
-     * Display a listing of the user's bookmarked tweets.
+     * Display a listing of the user's bookmarked tweets with pagination.
      */
     public function index(Request $request): Response
     {
@@ -22,7 +22,8 @@ class BookmarkController extends Controller
         })
             ->withInteractionDetails($userId)
             ->orderByDesc('id')
-            ->get();
+            ->paginate(15)
+            ->withQueryString();
 
         return Inertia::render('Bookmarks', [
             'tweets' => $tweets,

@@ -216,6 +216,21 @@ const userItems = computed(() => props.users?.data || []);
                     </p>
                 </div>
             </div>
+
+            <!-- Pagination Controls -->
+            <div v-if="(tweets?.links || users?.links) && (tweets?.links?.length > 3 || users?.links?.length > 3)" class="p-6 flex justify-center space-x-2">
+                <Link
+                    v-for="link in (tweets?.links || users?.links)"
+                    :key="link.label"
+                    :href="link.url || '#'"
+                    v-html="link.label"
+                    :class="[
+                        'px-3.5 py-1.5 rounded-full text-xs font-semibold border transition',
+                        link.active ? 'bg-[#1C9CEF] border-[#1C9CEF] text-white' : 'border-gray-700 text-gray-400 hover:text-white',
+                        !link.url ? 'opacity-40 pointer-events-none' : ''
+                    ]"
+                />
+            </div>
         </div>
     </TwitterLayout>
 </template>

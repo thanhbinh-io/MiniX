@@ -7,6 +7,7 @@ use App\Models\Tweet;
 use App\Models\TweetView;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,7 +46,8 @@ class TweetController extends Controller
         }
 
         $tweets = $query->withInteractionDetails($userId)
-            ->orderBy('id', 'desc')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
@@ -61,19 +63,25 @@ class TweetController extends Controller
     public function show(Request $request, $username, $id): Response
     {
         $userId = $request->user()?->id;
-        $ip = $request->ip();
-        $sessionId = $request->session()->getId();
 
         $tweet = Tweet::where('id', $id)
             ->withInteractionDetails($userId)
             ->firstOrFail();
 
-        // View count deduplication: check if recorded in last 2 hours
+        // Deduplicated view tracking within 2-hour window
+        $ip = $request->ip();
+        $sessionId = $request->session()->getId();
+
         $recentView = TweetView::where('tweet_id', $tweet->id)
-            ->when($userId, fn ($q) => $q->where('user_id', $userId))
-            ->when(! $userId, fn ($q) => $q->where('ip_address', $ip)->where('session_id', $sessionId))
+            ->where(function ($q) use ($userId, $ip, $sessionId) {
+                if ($userId) {
+                    $q->where('user_id', $userId);
+                } else {
+                    $q->where('ip_address', $ip)->orWhere('session_id', $sessionId);
+                }
+            })
             ->where('created_at', '>=', now()->subHours(2))
-            ->exists();
+            ->first();
 
         if (! $recentView) {
             TweetView::create([
@@ -82,12 +90,12 @@ class TweetController extends Controller
                 'ip_address' => $ip,
                 'session_id' => $sessionId,
             ]);
-            $tweet->loadCount('views');
         }
 
-        $replies = $tweet->replies()
+        $replies = Tweet::where('parent_id', $tweet->id)
             ->withInteractionDetails($userId)
-            ->orderBy('id', 'asc')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         return Inertia::render('Tweet/Show', [
@@ -126,6 +134,12 @@ class TweetController extends Controller
             'is_video' => $isVideo,
         ]);
 
+        // Sync hashtags
+        $newTweet->syncHashtags();
+
+        // Notify mentions
+        $newTweet->notifyMentions($request->user());
+
         if ($parentId) {
             $parent = Tweet::find($parentId);
             if ($parent && $parent->user_id !== $request->user()->id && $parent->user) {
@@ -134,7 +148,61 @@ class TweetController extends Controller
             return redirect()->back();
         }
 
+        if ($quoteOfId) {
+            $quoted = Tweet::find($quoteOfId);
+            if ($quoted && $quoted->user_id !== $request->user()->id && $quoted->user) {
+                $quoted->user->notify(new \App\Notifications\AppActivityNotification($request->user(), 'quote', $newTweet));
+            }
+        }
+
         return redirect()->route('tweets.index');
+    }
+
+    /**
+     * Update the specified tweet in storage.
+     */
+    public function update(Request $request, Tweet $tweet): RedirectResponse
+    {
+        $this->authorize('update', $tweet);
+
+        $request->validate([
+            'tweet' => 'required_without:file|nullable|string|max:280',
+            'file' => 'nullable|file|mimes:jpeg,jpg,png,webp,gif|max:5120',
+            'remove_file' => 'nullable|boolean',
+        ]);
+
+        $filePath = $tweet->file;
+        $isVideo = $tweet->is_video;
+
+        if ($request->boolean('remove_file')) {
+            if ($filePath && str_starts_with($filePath, '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $filePath));
+            }
+            $filePath = null;
+            $isVideo = false;
+        }
+
+        if ($request->hasFile('file')) {
+            // Delete old file if present
+            if ($filePath && str_starts_with($filePath, '/storage/')) {
+                Storage::disk('public')->delete(str_replace('/storage/', '', $filePath));
+            }
+            $uploaded = $request->file('file');
+            $storedPath = $uploaded->store('tweets/images', 'public');
+            $filePath = '/storage/' . $storedPath;
+            $isVideo = false;
+        }
+
+        $tweet->update([
+            'tweet' => $request->input('tweet') ?? '',
+            'file' => $filePath,
+            'is_video' => $isVideo,
+        ]);
+
+        $tweet->syncHashtags();
+        $tweet->notifyMentions($request->user());
+
+        return redirect()->back()->with('success', 'Bài viết đã được cập nhật thành công.');
     }
 
     /**

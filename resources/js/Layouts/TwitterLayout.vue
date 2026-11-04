@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { router, usePage, Link } from '@inertiajs/vue3';
-import Twitter from 'vue-material-design-icons/Twitter.vue';
+import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Magnify from 'vue-material-design-icons/Magnify.vue';
 import DotsHorizontal from 'vue-material-design-icons/DotsHorizontal.vue';
+import DotsHorizontalCircleOutline from 'vue-material-design-icons/DotsHorizontalCircleOutline.vue';
 import Feather from 'vue-material-design-icons/Feather.vue';
 import Close from 'vue-material-design-icons/Close.vue';
 import ChevronDown from 'vue-material-design-icons/ChevronDown.vue';
@@ -15,6 +16,11 @@ import ArrowLeft from 'vue-material-design-icons/ArrowLeft.vue';
 import Logout from 'vue-material-design-icons/Logout.vue';
 import Account from 'vue-material-design-icons/Account.vue';
 import MenuItem from '@/Components/MenuItem.vue';
+import CogOutline from 'vue-material-design-icons/CogOutline.vue';
+import PaletteOutline from 'vue-material-design-icons/PaletteOutline.vue';
+import HelpCircleOutline from 'vue-material-design-icons/HelpCircleOutline.vue';
+import WeatherNight from 'vue-material-design-icons/WeatherNight.vue';
+import WeatherSunny from 'vue-material-design-icons/WeatherSunny.vue';
 
 const props = defineProps({
     showHomeHeader: {
@@ -30,6 +36,21 @@ const props = defineProps({
 const page = usePage();
 const user = computed(() => page.props.auth?.user);
 const unreadNotificationsCount = computed(() => page.props.auth?.unread_notifications_count || 0);
+const unreadMessagesCount = computed(() => page.props.auth?.unread_messages_count || 0);
+const isAdmin = computed(() => page.props.auth?.is_admin || false);
+const isSuspended = computed(() => page.props.auth?.is_suspended || false);
+const isChatPage = computed(() => {
+    return page.component === 'Messages/Index' || page.url.startsWith('/messages');
+});
+const isSettingsPage = computed(() => {
+    return page.component.startsWith('Settings/') || page.url.startsWith('/settings');
+});
+const isBotPage = computed(() => {
+    return page.component === 'Bot/Index' || page.url.startsWith('/bot');
+});
+
+const trendsList = computed(() => page.props.trends || []);
+const whoToFollowList = computed(() => page.props.who_to_follow || []);
 
 const switchFeedTab = (tab) => {
     router.visit(route('tweets.index', { tab }), {
@@ -50,6 +71,13 @@ const searchTag = (tag) => {
 };
 
 let showUserMenu = ref(false);
+let showMoreMenu = ref(false);
+let showDisplayModal = ref(false);
+let showEmojiPicker = ref(false);
+const commonEmojis = ['😀', '😂', '🔥', '❤️', '👍', '🎉', '🚀', '✨', '👏', '💯', '🙏', '👀'];
+const insertEmoji = (emoji) => {
+    tweet.value = (tweet.value || '') + emoji;
+};
 let createTweet = ref(false);
 let tweet = ref('');
 let file = ref(null);
@@ -58,8 +86,44 @@ let uploadType = ref('');
 let errorMessage = ref('');
 let isSubmitting = ref(false);
 
-let randImg1 = ref(`https://picsum.photos/id/${(Math.random() * 200).toFixed(0)}/100`);
-let randImg2 = ref(`https://picsum.photos/id/${(Math.random() * 200).toFixed(0)}/100`);
+// Dark / Light Mode State
+const isDarkMode = ref(true);
+
+const initTheme = () => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        isDarkMode.value = false;
+        document.documentElement.classList.remove('dark');
+    } else {
+        isDarkMode.value = true;
+        document.documentElement.classList.add('dark');
+    }
+};
+
+const toggleTheme = () => {
+    isDarkMode.value = !isDarkMode.value;
+    if (isDarkMode.value) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    }
+};
+
+const handleWindowClick = () => {
+    showMoreMenu.value = false;
+    showUserMenu.value = false;
+};
+
+onMounted(() => {
+    initTheme();
+    window.addEventListener('click', handleWindowClick);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('click', handleWindowClick);
+});
 
 const getFile = (e) => {
     if (!e.target.files || !e.target.files[0]) return;
@@ -138,30 +202,141 @@ const textareaInput = (e) => {
 </script>
 
 <template>
-    <div class="fixed w-full">
-        <div class="max-w-[1400px] flex mx-auto">
+    <div class="fixed w-full h-full bg-white dark:bg-black text-gray-900 dark:text-white transition-colors duration-200">
+        <div :class="isChatPage ? 'w-full flex h-full' : 'max-w-[1400px] flex mx-auto'">
             <!-- Left Sidebar Navigation -->
-            <div class="lg:w-3/12 w-[60px] h-[100vh] max-w-[350px] lg:px-4 lg:mx-auto flex flex-col justify-between pb-4">
+            <div
+                :class="isChatPage
+                    ? 'w-[68px] xl:w-[72px] px-1 flex-shrink-0'
+                    : 'lg:w-3/12 w-[60px] max-w-[350px] lg:px-4 lg:mx-auto'"
+                class="h-[100vh] flex flex-col justify-between pb-4 transition-all duration-200"
+            >
                 <div>
-                    <div class="p-2 px-3 mb-2">
-                        <Link href="/">
-                            <Twitter fillColor="#FFFFFF" :size="37" />
+                    <div class="p-2 px-3 mb-2" :class="{ 'flex justify-center px-0': isChatPage }">
+                        <Link href="/" class="inline-flex items-center justify-center p-2 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition w-fit" title="Trang chủ">
+                            <ApplicationLogo class="w-8 h-8 text-gray-900 dark:text-white" />
                         </Link>
                     </div>
 
-                    <MenuItem iconString="Home" href="/" />
-                    <MenuItem iconString="Explore" :href="route('explore')" />
-                    <MenuItem iconString="Notifications" :href="user ? route('notifications.index') : route('login')" :badgeCount="unreadNotificationsCount" />
-                    <MenuItem iconString="Messages" />
-                    <MenuItem iconString="Bookmarks" :href="user ? route('bookmarks.index') : route('login')" />
-                    <MenuItem iconString="Profile" :href="user ? route('users.profile', user.username) : route('login')" />
+                    <MenuItem iconString="Home" href="/" :collapsed="isChatPage" />
+                    <MenuItem iconString="Explore" :href="route('explore')" :collapsed="isChatPage" />
+                    <MenuItem iconString="Notifications" :href="user ? route('notifications.index') : route('login')" :badgeCount="unreadNotificationsCount" :collapsed="isChatPage" />
+                    <MenuItem iconString="Chat" :href="user ? route('messages.index') : route('login')" :badgeCount="unreadMessagesCount" :collapsed="isChatPage" />
+                    <MenuItem iconString="Bot" :href="user ? route('bot.index') : route('login')" :collapsed="isChatPage" />
+                    <MenuItem iconString="Bookmarks" :href="user ? route('bookmarks.index') : route('login')" :collapsed="isChatPage" />
+                    <MenuItem iconString="Profile" :href="user ? route('users.profile', user.username) : route('login')" :collapsed="isChatPage" />
+
+                    <!-- More Button with Circle Dots Icon & Popover -->
+                    <div class="relative">
+                        <button
+                            type="button"
+                            @click.stop="showMoreMenu = !showMoreMenu; showUserMenu = false;"
+                            :class="isChatPage ? 'justify-center p-3 w-fit mx-auto' : 'w-full p-2 px-4 lg:pr-6'"
+                            class="block hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full cursor-pointer transition duration-200 ease-in-out text-gray-900 dark:text-white"
+                            title="More"
+                        >
+                            <div class="flex items-center" :class="{ 'justify-center': isChatPage }">
+                                <div class="relative flex items-center justify-center">
+                                    <DotsHorizontalCircleOutline fillColor="currentColor" :size="30" />
+                                </div>
+                                <span v-if="!isChatPage" class="lg:block hidden font-extrabold text-[23px] pl-4 mt-0.5">
+                                    More
+                                </span>
+                            </div>
+                        </button>
+
+                        <!-- More Menu Popover -->
+                        <div
+                            v-if="showMoreMenu"
+                            @click.stop
+                            :class="isChatPage ? 'bottom-14 -left-2 w-72' : 'bottom-12 left-0 w-72'"
+                            class="absolute bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-2 z-50 mb-2 transition-all duration-150"
+                        >
+                            <!-- Dark / Light Theme Toggle -->
+                            <div
+                                @click="toggleTheme"
+                                class="flex items-center justify-between p-3 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl cursor-pointer transition select-none group"
+                            >
+                                <div class="flex items-center space-x-3">
+                                    <component
+                                        :is="isDarkMode ? WeatherNight : WeatherSunny"
+                                        :size="22"
+                                        class="text-gray-700 dark:text-gray-300 group-hover:text-[#1C9CEF] transition"
+                                    />
+                                    <div>
+                                        <div class="text-sm font-bold text-gray-900 dark:text-white">
+                                            Dark mode
+                                        </div>
+                                        <div class="text-[11px] text-gray-500">
+                                            {{ isDarkMode ? 'On' : 'Off' }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- Toggle Switch -->
+                                <div
+                                    :class="isDarkMode ? 'bg-[#1C9CEF]' : 'bg-gray-300 dark:bg-gray-700'"
+                                    class="w-12 h-6 flex items-center rounded-full p-1 duration-300 cursor-pointer shadow-inner"
+                                >
+                                    <div
+                                        :class="isDarkMode ? 'translate-x-6 bg-white' : 'translate-x-0 bg-white'"
+                                        class="w-4 h-4 rounded-full shadow-md transform duration-300"
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 dark:border-gray-800 my-1"></div>
+
+                            <!-- 1. Settings and privacy -->
+                            <Link
+                                :href="user ? route('settings.account') : route('login')"
+                                @click="showMoreMenu = false"
+                                class="flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 transition group"
+                            >
+                                <CogOutline :size="22" class="mr-3 text-gray-700 dark:text-gray-300 group-hover:text-[#1C9CEF] transition flex-shrink-0" />
+                                <span>Settings and privacy</span>
+                            </Link>
+
+                            <!-- 2. Display -->
+                            <div
+                                @click="showMoreMenu = false; showDisplayModal = true"
+                                class="flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 cursor-pointer transition group"
+                            >
+                                <PaletteOutline :size="22" class="mr-3 text-gray-700 dark:text-gray-300 group-hover:text-[#1C9CEF] transition flex-shrink-0" />
+                                <span>Display</span>
+                            </div>
+
+                            <!-- 3. Help Center -->
+                            <a
+                                href="https://help.twitter.com"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                @click="showMoreMenu = false"
+                                class="flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-xl text-sm font-semibold text-gray-800 dark:text-gray-200 cursor-pointer transition group"
+                            >
+                                <HelpCircleOutline :size="22" class="mr-3 text-gray-700 dark:text-gray-300 group-hover:text-[#1C9CEF] transition flex-shrink-0" />
+                                <span>Help Center</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Admin Panel link (only visible to admin users) -->
+                    <MenuItem
+                        v-if="isAdmin"
+                        iconString="Admin"
+                        :href="route('admin.dashboard')"
+                        :collapsed="isChatPage"
+                    />
 
                     <button
                         @click="openTweetModal"
-                        class="w-full mt-6 text-white font-extrabold text-[20px] bg-[#1C9CEF] hover:bg-[#1A8CD8] p-3 px-3 rounded-full cursor-pointer transition shadow"
+                        :class="isChatPage
+                            ? 'w-12 h-12 p-0 mx-auto flex items-center justify-center'
+                            : 'w-full p-3 px-3'"
+                        class="mt-6 font-extrabold text-[20px] bg-black dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 rounded-full cursor-pointer transition shadow"
+                        title="Post"
                     >
-                        <span class="lg:block hidden">Tweet</span>
-                        <span class="block lg:hidden flex justify-center"><Feather /></span>
+                        <span v-if="!isChatPage" class="lg:block hidden">Post</span>
+                        <span :class="isChatPage ? 'flex justify-center' : 'block lg:hidden flex justify-center'"><Feather fillColor="currentColor" :size="22" /></span>
                     </button>
                 </div>
 
@@ -172,16 +347,18 @@ const textareaInput = (e) => {
                         <!-- Popover Menu -->
                         <div
                             v-if="showUserMenu"
-                            class="absolute bottom-16 left-0 w-full min-w-[240px] bg-black border border-gray-700 rounded-2xl shadow-2xl p-2 z-50 mb-2"
+                            @click.stop
+                            :class="isChatPage ? 'bottom-16 -left-2 w-64' : 'bottom-16 left-0 w-full min-w-[240px]'"
+                            class="absolute bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-2xl shadow-2xl p-2 z-50 mb-2"
                         >
-                            <div class="flex items-center p-3 border-b border-gray-800">
+                            <div class="flex items-center p-3 border-b border-gray-100 dark:border-gray-800">
                                 <img
                                     :src="user.avatar_url"
                                     class="rounded-full w-10 h-10 object-cover bg-gray-700"
                                     :alt="user.name"
                                 />
                                 <div class="ml-3 truncate">
-                                    <div class="font-bold text-white text-sm truncate">{{ user.name }}</div>
+                                    <div class="font-bold text-gray-900 dark:text-white text-sm truncate">{{ user.name }}</div>
                                     <div class="text-xs text-gray-500 truncate">@{{ user.username }}</div>
                                 </div>
                             </div>
@@ -189,15 +366,24 @@ const textareaInput = (e) => {
                             <Link
                                 :href="route('users.profile', user.username)"
                                 @click="showUserMenu = false"
-                                class="flex items-center px-3 py-2.5 hover:bg-gray-800 rounded-lg text-sm text-gray-200 cursor-pointer mt-1"
+                                class="flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm text-gray-700 dark:text-gray-200 cursor-pointer mt-1"
                             >
                                 <Account :size="20" class="mr-2.5 text-gray-400" />
                                 View profile
                             </Link>
 
+                            <Link
+                                :href="route('profile.edit')"
+                                @click="showUserMenu = false"
+                                class="flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm text-gray-700 dark:text-gray-200 cursor-pointer"
+                            >
+                                <span class="text-base mr-3">⚙️</span>
+                                Cài đặt tài khoản
+                            </Link>
+
                             <button
                                 @click="logout"
-                                class="w-full text-left flex items-center px-3 py-2.5 hover:bg-gray-800 rounded-lg text-sm font-bold text-red-500 cursor-pointer"
+                                class="w-full text-left flex items-center px-3 py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg text-sm font-bold text-red-500 cursor-pointer"
                             >
                                 <Logout :size="20" class="mr-2.5 text-red-500" />
                                 Log out @{{ user.username }}
@@ -207,21 +393,23 @@ const textareaInput = (e) => {
                         <!-- Trigger Button -->
                         <button
                             type="button"
-                            @click="showUserMenu = !showUserMenu"
-                            class="w-full flex items-center justify-between p-2 rounded-full hover:bg-gray-900 cursor-pointer transition"
+                            @click.stop="showUserMenu = !showUserMenu; showMoreMenu = false;"
+                            :class="isChatPage ? 'justify-center p-1.5 w-fit mx-auto' : 'w-full justify-between p-2'"
+                            class="flex items-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer transition text-gray-900 dark:text-white"
+                            :title="user.name"
                         >
                             <div class="flex items-center truncate">
                                 <img
                                     :src="user.avatar_url"
-                                    class="rounded-full w-10 h-10 object-cover bg-gray-700"
+                                    class="rounded-full w-10 h-10 object-cover bg-gray-700 flex-shrink-0"
                                     :alt="user.name"
                                 />
-                                <div class="hidden lg:block ml-3 text-left truncate">
-                                    <div class="font-bold text-white text-sm truncate">{{ user.name }}</div>
+                                <div v-if="!isChatPage" class="hidden lg:block ml-3 text-left truncate">
+                                    <div class="font-bold text-gray-900 dark:text-white text-sm truncate">{{ user.name }}</div>
                                     <div class="text-xs text-gray-500 truncate">@{{ user.username }}</div>
                                 </div>
                             </div>
-                            <DotsHorizontal fillColor="#ffffff" :size="20" class="hidden lg:block text-gray-500 ml-2" />
+                            <DotsHorizontal v-if="!isChatPage" fillColor="currentColor" :size="20" class="hidden lg:block text-gray-500 ml-2" />
                         </button>
                     </div>
 
@@ -229,35 +417,42 @@ const textareaInput = (e) => {
                     <div v-else class="space-y-2 px-1">
                         <Link
                             :href="route('login')"
-                            class="w-full block text-center font-bold text-sm text-white border border-gray-600 hover:bg-gray-900 py-2.5 rounded-full transition"
+                            :class="isChatPage ? 'p-2 text-center text-xs' : 'py-2.5 text-sm'"
+                            class="w-full block text-center font-bold text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 rounded-full transition"
                         >
-                            <span class="hidden lg:inline">Log in</span>
-                            <span class="lg:hidden text-xs">Login</span>
+                            <span :class="isChatPage ? 'hidden' : 'hidden lg:inline'">Log in</span>
+                            <span :class="isChatPage ? 'inline' : 'lg:hidden'">Login</span>
                         </Link>
                         <Link
                             :href="route('register')"
-                            class="w-full block text-center font-bold text-sm text-black bg-white hover:bg-gray-200 py-2.5 rounded-full transition shadow"
+                            :class="isChatPage ? 'p-2 text-center text-xs' : 'py-2.5 text-sm'"
+                            class="w-full block text-center font-bold text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 py-2.5 rounded-full transition shadow"
                         >
-                            <span class="hidden lg:inline">Sign up</span>
-                            <span class="lg:hidden text-xs">Join</span>
+                            <span :class="isChatPage ? 'hidden' : 'hidden lg:inline'">Sign up</span>
+                            <span :class="isChatPage ? 'inline' : 'lg:hidden'">Join</span>
                         </Link>
                     </div>
                 </div>
             </div>
 
             <!-- Center Timeline Feed Area -->
-            <div class="lg:w-7/12 w-11/12 border-x border-gray-800 h-[100vh] overflow-y-auto scrollbar-hide relative">
+            <div
+                :class="isChatPage || isSettingsPage || isBotPage
+                    ? 'flex-1 w-full border-l border-gray-200 dark:border-gray-800'
+                    : 'lg:w-7/12 w-11/12 border-x border-gray-200 dark:border-gray-800'"
+                class="h-[100vh] overflow-y-auto scrollbar-hide relative bg-white dark:bg-black transition-colors duration-200"
+            >
                 <!-- Top Home Bar with For You / Following tabs -->
-                <div v-if="showHomeHeader" class="bg-black/80 backdrop-blur-md z-20 sticky top-0 w-full border-b border-gray-800">
-                    <div class="w-full text-white text-[20px] font-bold px-4 pt-3 pb-1">
+                <div v-if="showHomeHeader" class="bg-white/80 dark:bg-black/80 backdrop-blur-md z-20 sticky top-0 w-full border-b border-gray-200 dark:border-gray-800">
+                    <div class="w-full text-gray-900 dark:text-white text-[20px] font-bold px-4 pt-3 pb-1">
                         Home
                     </div>
                     <div class="flex">
                         <button
                             type="button"
                             @click="switchFeedTab('for-you')"
-                            :class="currentTab === 'for-you' ? 'text-white' : 'text-gray-500 hover:text-gray-300'"
-                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-900/60 cursor-pointer transition relative"
+                            :class="currentTab === 'for-you' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-100 dark:hover:bg-gray-900/60 cursor-pointer transition relative"
                         >
                             <span>For you</span>
                             <div v-if="currentTab === 'for-you'" class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-[#1C9CEF] rounded-full"></div>
@@ -265,8 +460,8 @@ const textareaInput = (e) => {
                         <button
                             type="button"
                             @click="switchFeedTab('following')"
-                            :class="currentTab === 'following' ? 'text-white' : 'text-gray-500 hover:text-gray-300'"
-                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-900/60 cursor-pointer transition relative"
+                            :class="currentTab === 'following' ? 'text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+                            class="flex-1 flex items-center justify-center h-[52px] text-[15px] font-bold hover:bg-gray-100 dark:hover:bg-gray-900/60 cursor-pointer transition relative"
                         >
                             <span>Following</span>
                             <div v-if="currentTab === 'following'" class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-[#1C9CEF] rounded-full"></div>
@@ -275,13 +470,28 @@ const textareaInput = (e) => {
                 </div>
 
                 <slot />
-                <div class="pb-24"></div>
+
+                <!-- Suspended user notice banner -->
+                <div
+                    v-if="isSuspended"
+                    class="sticky bottom-0 w-full bg-red-950 border-t border-red-800 px-4 py-3 flex items-center space-x-3 z-30"
+                >
+                    <span class="text-xl">🚫</span>
+                    <div>
+                        <p class="text-red-300 font-semibold text-sm">Tài khoản của bạn đang bị đình chỉ.</p>
+                        <p class="text-red-400/70 text-xs">Bạn chỉ có thể xem nội dung. Vui lòng liên hệ quản trị viên để biết thêm thông tin.</p>
+                    </div>
+                </div>
             </div>
 
-            <!-- Right Trending / Search Area -->
-            <div class="lg:block hidden lg:w-4/12 h-screen border-l border-gray-800 pl-4">
-                <form @submit.prevent="executeSearch" class="w-full p-1 mt-2 px-4 lg:flex items-center rounded-full hidden bg-[#212327] focus-within:ring-1 focus-within:ring-[#1C9CEF]">
-                    <Magnify fillColor="#5e5c5c" :size="25"/>
+            <!-- Right Sidebar Widgets -->
+            <div
+                v-if="!isChatPage && !isSettingsPage && !isBotPage"
+                class="lg:w-4/12 hidden lg:block h-[100vh] border-l border-gray-200 dark:border-gray-800 px-4 pt-2 overflow-y-auto scrollbar-hide bg-white dark:bg-black transition-colors duration-200"
+            >
+                <!-- Search Box -->
+                <form @submit.prevent="executeSearch" class="flex items-center bg-gray-100 dark:bg-[#212327] rounded-full px-4 py-1 text-gray-500 focus-within:text-[#1C9CEF] focus-within:border-[#1C9CEF] border border-transparent">
+                    <Magnify :size="20" class="mr-2" />
                     <input
                         v-model="searchQuery"
                         class="
@@ -290,7 +500,8 @@ const textareaInput = (e) => {
                             border-0
                             py-2
                             bg-transparent
-                            text-gray-100
+                            text-gray-900
+                            dark:text-gray-100
                             placeholder-gray-500
                             leading-tight
                             focus:ring-0
@@ -300,55 +511,72 @@ const textareaInput = (e) => {
                     >
                 </form>
 
-                <div class="w-full mt-4 rounded-2xl lg:block hidden bg-[#212327] p-4">
-                    <div class="w-full text-white font-extrabold mb-4 text-[20px]">What's happening</div>
+                <!-- Real Trends Widget -->
+                <div class="w-full mt-4 rounded-2xl bg-gray-50 dark:bg-[#16181c] border border-gray-200 dark:border-gray-800 p-4">
+                    <div class="w-full text-gray-900 dark:text-white font-extrabold mb-3 text-[19px]">Xu hướng cho bạn</div>
 
-                    <div @click="searchTag('#TwitterClone')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
-                        <div class="text-[13px] text-gray-400">Technology · Trending</div>
-                        <div class="text-white font-bold text-[15px]">#TwitterClone</div>
-                        <div class="text-[13px] text-gray-400">Laravel 9 + Vue 3</div>
+                    <div v-if="trendsList && trendsList.length > 0">
+                        <div
+                            v-for="trend in trendsList"
+                            :key="trend.tag"
+                            @click="searchTag(trend.tag)"
+                            class="py-2.5 hover:bg-gray-100 dark:hover:bg-gray-800/70 rounded-xl px-2 cursor-pointer transition duration-150"
+                        >
+                            <div class="text-[12px] text-gray-500 dark:text-gray-400">{{ trend.category }}</div>
+                            <div class="text-gray-900 dark:text-white font-bold text-[15px]">{{ trend.tag }}</div>
+                            <div class="text-[12px] text-gray-500 dark:text-gray-400">{{ trend.tweet_count }}</div>
+                        </div>
+
+                        <Link :href="route('explore')" class="text-[#1C9CEF] text-xs pt-2 hover:underline cursor-pointer block">
+                            Xem thêm
+                        </Link>
                     </div>
 
-                    <div @click="searchTag('#Laravel')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
-                        <div class="text-[13px] text-gray-400">Web Development · Trending</div>
-                        <div class="text-white font-bold text-[15px]">#Laravel</div>
-                        <div class="text-[13px] text-gray-400">Full-stack Monolith</div>
+                    <div v-else class="py-3 text-xs text-gray-500 text-center">
+                        Chưa có chủ đề xu hướng nào gần đây.
                     </div>
+                </div>
 
-                    <div @click="searchTag('#TailwindCSS')" class="py-3 hover:bg-gray-800 rounded-xl px-2 cursor-pointer transition duration-200">
-                        <div class="text-[13px] text-gray-400">Design · Trending</div>
-                        <div class="text-white font-bold text-[15px]">#TailwindCSS</div>
-                        <div class="text-[13px] text-gray-400">Modern Dark Theme</div>
+                <!-- Real Who To Follow Widget -->
+                <div v-if="whoToFollowList && whoToFollowList.length > 0" class="w-full mt-4 rounded-2xl bg-gray-50 dark:bg-[#16181c] border border-gray-200 dark:border-gray-800 p-4">
+                    <div class="w-full text-gray-900 dark:text-white font-extrabold mb-3 text-[19px]">Gợi ý theo dõi</div>
+
+                    <div
+                        v-for="suggested in whoToFollowList"
+                        :key="suggested.id"
+                        class="py-2.5 flex items-center justify-between hover:bg-gray-100 dark:hover:bg-gray-800/50 rounded-xl px-2 transition"
+                    >
+                        <Link :href="route('users.profile', suggested.username)" class="flex items-center space-x-2.5 truncate mr-2">
+                            <img :src="suggested.avatar_url" class="w-10 h-10 rounded-full object-cover bg-gray-700 flex-shrink-0" />
+                            <div class="truncate">
+                                <p class="text-sm font-bold text-gray-900 dark:text-white truncate hover:underline">{{ suggested.name }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">@{{ suggested.username }}</p>
+                            </div>
+                        </Link>
+
+                        <button
+                            type="button"
+                            @click="router.post(route('users.follow', suggested.id), {}, { preserveScroll: true })"
+                            class="bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black text-xs font-bold px-3.5 py-1.5 rounded-full transition cursor-pointer flex-shrink-0 shadow-sm"
+                        >
+                            Theo dõi
+                        </button>
                     </div>
-
-                    <Link :href="route('explore')" class="text-[#1C9CEF] text-sm pt-2 hover:underline cursor-pointer block">
-                        Show more
-                    </Link>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Tweet Creation Modal -->
-    <div id="OverlaySection" v-if="createTweet" class="fixed top-0 left-0 w-full h-screen bg-black bg-opacity-70 backdrop-blur-sm z-50 flex items-start justify-center p-3">
-        <div class="w-full max-w-2xl mt-10 rounded-2xl bg-black border border-gray-800 shadow-2xl p-4">
-            <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+    <div id="OverlaySection" v-if="createTweet" class="fixed top-0 left-0 w-full h-screen bg-black/60 dark:bg-black/80 backdrop-blur-sm z-50 flex items-start justify-center p-3">
+        <div class="w-full max-w-2xl mt-10 rounded-2xl bg-white dark:bg-black border border-gray-200 dark:border-gray-800 shadow-2xl p-4 transition-colors">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
                 <button
                     type="button"
                     @click="closeMessageBox"
-                    class="hover:bg-gray-800 p-2 rounded-full cursor-pointer transition"
+                    class="hover:bg-gray-100 dark:hover:bg-gray-800 p-2 rounded-full cursor-pointer transition text-gray-700 dark:text-gray-300"
                 >
-                    <Close fillColor="#FFFFFF" :size="24" />
-                </button>
-
-                <button
-                    :class="(!tweet && !file) || (tweet && tweet.length > 280) || isSubmitting ? 'bg-[#124D77] text-gray-400 cursor-not-allowed' : 'bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white cursor-pointer'"
-                    :disabled="(!tweet && !file) || (tweet && tweet.length > 280) || isSubmitting"
-                    @click="addTweet"
-                    class="font-extrabold text-[15px] py-1.5 px-5 rounded-full transition"
-                >
-                    <span v-if="isSubmitting">Posting...</span>
-                    <span v-else>Tweet</span>
+                    <Close fillColor="currentColor" :size="24" />
                 </button>
             </div>
 
@@ -368,7 +596,7 @@ const textareaInput = (e) => {
 
                 <div class="w-[calc(100%-55px)]">
                     <div class="inline-block mb-1">
-                        <div class="flex items-center border border-gray-700 px-3 py-0.5 rounded-full text-xs font-bold text-[#1C9CEF]">
+                        <div class="flex items-center border border-gray-300 dark:border-gray-700 px-3 py-0.5 rounded-full text-xs font-bold text-[#1C9CEF]">
                             <span>Everyone</span>
                             <ChevronDown class="ml-1" fillColor="#1C9CEF" :size="18"/>
                         </div>
@@ -383,10 +611,11 @@ const textareaInput = (e) => {
                             rows="4"
                             class="
                                 w-full
-                                bg-black
+                                bg-transparent
                                 border-0
                                 focus:ring-0
-                                text-white
+                                text-gray-900
+                                dark:text-white
                                 text-[19px]
                                 placeholder-gray-500
                                 min-h-[110px]
@@ -396,11 +625,11 @@ const textareaInput = (e) => {
                     </div>
 
                     <!-- Uploaded Media Preview -->
-                    <div v-if="showUpload" class="relative my-3 rounded-2xl overflow-hidden border border-gray-800 max-h-[350px]">
+                    <div v-if="showUpload" class="relative my-3 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 max-h-[350px]">
                         <button
                             type="button"
                             @click="clearUpload"
-                            class="absolute top-2 right-2 bg-black bg-opacity-70 hover:bg-opacity-90 p-1.5 rounded-full text-white cursor-pointer z-10 transition"
+                            class="absolute top-2 right-2 bg-black/70 hover:bg-black/90 p-1.5 rounded-full text-white cursor-pointer z-10 transition"
                         >
                             <Close fillColor="#ffffff" :size="18" />
                         </button>
@@ -412,7 +641,7 @@ const textareaInput = (e) => {
                         <Earth class="mr-1.5" fillColor="#1C9CEF" :size="16" /> Everyone can reply
                     </div>
 
-                    <div class="border-b border-gray-800 my-2"></div>
+                    <div class="border-b border-gray-200 dark:border-gray-800 my-2"></div>
 
                     <!-- Modal Actions & Character Counter -->
                     <div class="flex items-center justify-between pt-1">
@@ -422,11 +651,39 @@ const textareaInput = (e) => {
                             </label>
                             <input type="file" id="modalFileUpload" class="hidden" accept="image/*,video/mp4" @change="getFile">
 
-                            <div class="hover:bg-blue-900/30 p-2 rounded-full cursor-pointer text-[#1C9CEF] transition">
+                            <!-- GIF Button with tooltip notice -->
+                            <div
+                                @click="insertEmoji(' [GIF] ')"
+                                class="hover:bg-blue-900/30 p-2 rounded-full cursor-pointer text-[#1C9CEF] transition"
+                                title="Insert GIF tag"
+                            >
                                 <FileGifBox fillColor="#1C9CEF" :size="22" />
                             </div>
-                            <div class="hover:bg-blue-900/30 p-2 rounded-full cursor-pointer text-[#1C9CEF] transition">
-                                <Emoticon fillColor="#1C9CEF" :size="22" />
+
+                            <!-- Emoji Picker Button & Quick Popover -->
+                            <div class="relative">
+                                <div
+                                    @click="showEmojiPicker = !showEmojiPicker"
+                                    class="hover:bg-blue-900/30 p-2 rounded-full cursor-pointer text-[#1C9CEF] transition"
+                                    title="Add emoji"
+                                >
+                                    <Emoticon fillColor="#1C9CEF" :size="22" />
+                                </div>
+
+                                <div
+                                    v-if="showEmojiPicker"
+                                    class="absolute bottom-12 left-0 bg-white dark:bg-[#16181c] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl p-2 grid grid-cols-6 gap-1 z-30"
+                                >
+                                    <button
+                                        v-for="e in commonEmojis"
+                                        :key="e"
+                                        type="button"
+                                        @click="insertEmoji(e)"
+                                        class="p-2 text-lg hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
+                                    >
+                                        {{ e }}
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -441,16 +698,62 @@ const textareaInput = (e) => {
                             </span>
 
                             <button
-                                :class="(!tweet && !file) || (tweet && tweet.length > 280) || isSubmitting ? 'bg-[#124D77] text-gray-400 cursor-not-allowed' : 'bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white cursor-pointer'"
+                                :class="(!tweet && !file) || (tweet && tweet.length > 280) || isSubmitting ? 'bg-gray-300 dark:bg-white/50 text-gray-500 dark:text-black/50 cursor-not-allowed' : 'bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black cursor-pointer'"
                                 :disabled="(!tweet && !file) || (tweet && tweet.length > 280) || isSubmitting"
                                 @click="addTweet"
-                                class="font-extrabold text-[15px] py-1.5 px-5 rounded-full transition"
+                                class="font-extrabold text-[15px] py-1.5 px-5 rounded-full transition shadow"
                             >
                                 <span v-if="isSubmitting">Posting...</span>
-                                <span v-else>Tweet</span>
+                                <span v-else>Post</span>
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <!-- Display Customization Modal -->
+        <div v-if="showDisplayModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" @click="showDisplayModal = false">
+            <div class="bg-white dark:bg-[#16181c] rounded-2xl w-full max-w-md p-6 shadow-2xl border border-gray-200 dark:border-gray-800" @click.stop>
+                <div class="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">Customize your view</h3>
+                    <button @click="showDisplayModal = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-white p-1 rounded-full">
+                        <Close :size="20" />
+                    </button>
+                </div>
+
+                <div class="mt-4">
+                    <p class="text-xs text-gray-500 mb-3">Manage your background and color theme.</p>
+
+                    <!-- Background Theme Selection -->
+                    <div class="grid grid-cols-2 gap-3 mt-3">
+                        <button
+                            type="button"
+                            @click="if (isDarkMode) toggleTheme();"
+                            :class="!isDarkMode ? 'border-[#1C9CEF] ring-2 ring-[#1C9CEF]' : 'border-gray-300 dark:border-gray-700'"
+                            class="p-4 rounded-xl border bg-white text-gray-900 font-bold text-sm flex items-center justify-center space-x-2 transition"
+                        >
+                            <span>Default (Light)</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            @click="if (!isDarkMode) toggleTheme();"
+                            :class="isDarkMode ? 'border-[#1C9CEF] ring-2 ring-[#1C9CEF]' : 'border-gray-300 dark:border-gray-700'"
+                            class="p-4 rounded-xl border bg-black text-white font-bold text-sm flex items-center justify-center space-x-2 transition"
+                        >
+                            <span>Lights out (Dark)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button
+                        type="button"
+                        @click="showDisplayModal = false"
+                        class="px-5 py-2 bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white font-bold text-sm rounded-full transition shadow"
+                    >
+                        Done
+                    </button>
                 </div>
             </div>
         </div>

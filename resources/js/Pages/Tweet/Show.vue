@@ -52,6 +52,14 @@ const replyType = ref('');
 const isSubmittingReply = ref(false);
 const replyError = ref('');
 const toastMessage = ref('');
+const replyTextareaRef = ref(null);
+
+const focusReply = () => {
+    if (replyTextareaRef.value) {
+        replyTextareaRef.value.focus();
+        replyTextareaRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
 
 const showToast = (msg) => {
     toastMessage.value = msg;
@@ -289,6 +297,7 @@ const submitReply = () => {
                     <!-- Reply Action -->
                     <button
                         type="button"
+                        @click="focusReply"
                         class="p-2.5 rounded-full hover:bg-blue-900/30 hover:text-[#1C9CEF] transition cursor-pointer"
                         title="Reply"
                     >
@@ -353,6 +362,7 @@ const submitReply = () => {
                             Replying to <span class="text-[#1C9CEF]">@{{ tweet.user?.username }}</span>
                         </div>
                         <textarea
+                            ref="replyTextareaRef"
                             v-model="replyText"
                             placeholder="Post your reply"
                             rows="2"
@@ -384,9 +394,9 @@ const submitReply = () => {
 
                             <button
                                 :disabled="(!replyText && !replyFile) || isSubmittingReply"
-                                :class="(!replyText && !replyFile) || isSubmittingReply ? 'bg-[#124D77] text-gray-400 cursor-not-allowed' : 'bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white cursor-pointer'"
+                                :class="(!replyText && !replyFile) || isSubmittingReply ? 'bg-white/50 text-black/50 cursor-not-allowed' : 'bg-white hover:bg-gray-200 text-black cursor-pointer'"
                                 @click="submitReply"
-                                class="font-bold text-sm px-4 py-1.5 rounded-full transition"
+                                class="font-extrabold text-sm px-4 py-1.5 rounded-full transition shadow"
                             >
                                 <span v-if="isSubmittingReply">Replying...</span>
                                 <span v-else>Reply</span>

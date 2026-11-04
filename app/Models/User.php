@@ -28,6 +28,10 @@ class User extends Authenticatable
         'location',
         'website',
         'birthdate',
+        'role',
+        'status',
+        'settings',
+        'deactivated_at',
     ];
 
     /**
@@ -40,6 +44,7 @@ class User extends Authenticatable
         'banner_url',
         'handle',
         'joined_date_human',
+        'all_settings',
     ];
 
     /**
@@ -59,8 +64,48 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'birthdate' => 'date',
+        'birthdate'         => 'date',
+        'settings'          => 'array',
+        'deactivated_at'    => 'datetime',
     ];
+
+    /**
+     * Default settings and merged user settings.
+     */
+    public function getAllSettingsAttribute(): array
+    {
+        $defaults = [
+            'allow_dms_from'  => 'everyone', // 'everyone' | 'following'
+            'protect_posts'   => false,
+            'quality_filter'  => true,
+            'notify_likes'    => true,
+            'notify_retweets' => true,
+            'notify_follows'  => true,
+            'notify_mentions' => true,
+            'notify_email'    => false,
+        ];
+
+        return array_merge($defaults, $this->settings ?? []);
+    }
+
+    public function getSetting(string $key, $default = null)
+    {
+        return $this->all_settings[$key] ?? $default;
+    }
+
+    // ─── Role & Status helpers ───────────────────────────────
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    // ─── Accessors ───────────────────────────────────────────
 
     /**
      * Avatar URL accessor with fallback.
@@ -106,9 +151,8 @@ class User extends Authenticatable
         return $this->created_at ? 'Joined ' . $this->created_at->format('F Y') : '';
     }
 
-    /**
-     * Get tweets authored by this user.
-     */
+    // ─── Relationships ───────────────────────────────────────
+
     public function tweets()
     {
         return $this->hasMany(Tweet::class);
@@ -168,6 +212,20 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(User::class, 'mutes', 'user_id', 'muted_id')->withTimestamps();
     }
+
+    /** Reports submitted BY this user */
+    public function reportsMade()
+    {
+        return $this->hasMany(Report::class, 'reporter_id');
+    }
+
+    /** Reports targeting this user's account */
+    public function reportsReceived()
+    {
+        return $this->hasMany(Report::class, 'reported_user_id');
+    }
+
+    // ─── Boolean helpers ─────────────────────────────────────
 
     public function isFollowing(User $user): bool
     {

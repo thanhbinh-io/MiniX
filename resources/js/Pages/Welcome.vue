@@ -119,9 +119,9 @@ const loadMore = () => {
     <Head title="Home / Twitter" />
 
     <TwitterLayout :showHomeHeader="true" :currentTab="currentTab">
-        <div class="text-white divide-y divide-gray-800">
+        <div class="text-gray-900 dark:text-white divide-y divide-gray-200 dark:divide-gray-800">
             <!-- Inline Tweet Composer (Home feed top) -->
-            <div v-if="currentUser" class="p-4 border-b border-gray-800">
+            <div v-if="currentUser" class="p-4 border-b border-gray-200 dark:border-gray-800">
                 <div class="flex space-x-3">
                     <Link :href="route('users.profile', currentUser.username)" class="flex-shrink-0">
                         <img
@@ -136,7 +136,7 @@ const loadMore = () => {
                             v-model="tweetText"
                             placeholder="What is happening?!"
                             rows="3"
-                            class="w-full bg-transparent border-0 focus:ring-0 text-white placeholder-gray-500 text-[19px] resize-none p-0 leading-relaxed"
+                            class="w-full bg-transparent border-0 focus:ring-0 text-gray-900 dark:text-white placeholder-gray-500 text-[19px] resize-none p-0 leading-relaxed"
                         ></textarea>
 
                         <!-- Error Message -->
@@ -145,7 +145,7 @@ const loadMore = () => {
                         </div>
 
                         <!-- Media Preview -->
-                        <div v-if="previewUrl" class="relative my-2 rounded-2xl overflow-hidden border border-gray-800 max-h-[300px]">
+                        <div v-if="previewUrl" class="relative my-2 rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-800 max-h-[300px]">
                             <button
                                 type="button"
                                 @click="removeFile"
@@ -157,7 +157,7 @@ const loadMore = () => {
                             <img v-else :src="previewUrl" class="w-full max-h-[300px] object-cover" alt="Upload preview" />
                         </div>
 
-                        <div class="flex items-center text-[#1C9CEF] text-xs font-bold py-2 border-b border-gray-800/80">
+                        <div class="flex items-center text-[#1C9CEF] text-xs font-bold py-2 border-b border-gray-200 dark:border-gray-800/80">
                             <Earth class="mr-1.5" fillColor="#1C9CEF" :size="16" />
                             <span>Everyone can reply</span>
                         </div>
@@ -165,7 +165,7 @@ const loadMore = () => {
                         <!-- Composer bottom toolbar -->
                         <div class="flex items-center justify-between pt-3">
                             <div class="flex items-center space-x-1">
-                                <label for="inlineFeedUpload" class="p-2 rounded-full hover:bg-blue-900/30 text-[#1C9CEF] cursor-pointer transition">
+                                <label for="inlineFeedUpload" class="p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 text-[#1C9CEF] cursor-pointer transition">
                                     <ImageOutline fillColor="#1C9CEF" :size="20" />
                                 </label>
                                 <input
@@ -191,8 +191,8 @@ const loadMore = () => {
                                     type="button"
                                     :disabled="(!tweetText && !file) || (tweetText && tweetText.length > 280) || isSubmitting"
                                     @click="submitTweet"
-                                    :class="(!tweetText && !file) || (tweetText && tweetText.length > 280) || isSubmitting ? 'bg-[#124D77] text-gray-400 cursor-not-allowed' : 'bg-[#1C9CEF] hover:bg-[#1A8CD8] text-white cursor-pointer'"
-                                    class="font-bold text-sm px-5 py-1.5 rounded-full transition shadow"
+                                    :class="(!tweetText && !file) || (tweetText && tweetText.length > 280) || isSubmitting ? 'bg-gray-300 dark:bg-white/50 text-gray-500 dark:text-black/50 cursor-not-allowed' : 'bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black cursor-pointer'"
+                                    class="font-extrabold text-sm px-5 py-1.5 rounded-full transition shadow"
                                 >
                                     <span v-if="isSubmitting">Posting...</span>
                                     <span v-else>Post</span>
@@ -204,21 +204,21 @@ const loadMore = () => {
             </div>
 
             <!-- Guest CTA banner on Home feed -->
-            <div v-else class="p-6 bg-gray-950/60 border-b border-gray-800 text-center">
-                <h3 class="text-lg font-bold text-white mb-1">Don't miss what's happening</h3>
+            <div v-else class="p-6 bg-gray-50 dark:bg-black border-b border-gray-200 dark:border-gray-800 text-center">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-1">Don't miss what's happening</h3>
                 <p class="text-sm text-gray-500 mb-4 max-w-md mx-auto">
                     People on Twitter are the first to know. Log in or sign up to join the conversation and customize your timeline.
                 </p>
                 <div class="flex justify-center space-x-3">
                     <Link
                         :href="route('login')"
-                        class="px-5 py-1.5 rounded-full font-bold text-sm text-white border border-gray-600 hover:bg-gray-900 transition"
+                        class="px-5 py-1.5 rounded-full font-bold text-sm text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-900 transition"
                     >
                         Log in
                     </Link>
                     <Link
                         :href="route('register')"
-                        class="px-5 py-1.5 rounded-full font-bold text-sm text-black bg-white hover:bg-gray-200 transition"
+                        class="px-5 py-1.5 rounded-full font-bold text-sm text-white dark:text-black bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 transition shadow"
                     >
                         Sign up
                     </Link>

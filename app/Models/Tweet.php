@@ -74,6 +74,11 @@ class Tweet extends Model
         return $this->hasMany(TweetView::class);
     }
 
+    public function hashtags()
+    {
+        return $this->belongsToMany(Hashtag::class, 'hashtag_tweet')->withTimestamps();
+    }
+
     public function scopeWithInteractionDetails($query, $userId = null)
     {
         return $query->with(['user', 'quoteOf.user'])
@@ -94,6 +99,66 @@ class Tweet extends Model
         }
 
         return $this->created_at->diffForHumans();
+    }
+
+    /**
+     * Parse and sync hashtags found in tweet body.
+     */
+    public function syncHashtags(): void
+    {
+        if (empty($this->tweet)) {
+            $this->hashtags()->detach();
+            return;
+        }
+
+        preg_match_all('/#([a-zA-Z0-9_\x{00C0}-\x{024F}\x{1E00}-\x{1EFF}]+)/u', $this->tweet, $matches);
+        $tags = collect($matches[1] ?? [])
+            ->map(fn ($tag) => mb_strtolower($tag))
+            ->unique()
+            ->filter();
+
+        $hashtagIds = [];
+        foreach ($tags as $tag) {
+            $hashtag = Hashtag::firstOrCreate(['tag' => $tag]);
+            $hashtagIds[] = $hashtag->id;
+        }
+
+        $this->hashtags()->sync($hashtagIds);
+    }
+
+    /**
+     * Parse @mentions and notify mentioned active users.
+     */
+    public function notifyMentions(User $author): void
+    {
+        if (empty($this->tweet)) {
+            return;
+        }
+
+        preg_match_all('/@([a-zA-Z0-9_]{3,15})/', $this->tweet, $matches);
+        $usernames = collect($matches[1] ?? [])
+            ->unique()
+            ->filter(fn ($uname) => strtolower($uname) !== strtolower($author->username));
+
+        if ($usernames->isEmpty()) {
+            return;
+        }
+
+        $usersToNotify = User::whereIn('username', $usernames)
+            ->where('status', 'active')
+            ->get();
+
+        foreach ($usersToNotify as $mentionedUser) {
+            // Don't duplicate notification if already replied
+            if ($this->parent && $this->parent->user_id === $mentionedUser->id) {
+                continue;
+            }
+            if ($mentionedUser->hasBlocked($author) || $author->hasBlocked($mentionedUser)) {
+                continue;
+            }
+
+            $mentionedUser->notify(new \App\Notifications\AppActivityNotification($author, 'mention', $this));
+        }
     }
 
     /**

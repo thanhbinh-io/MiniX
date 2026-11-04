@@ -12,6 +12,9 @@ import LinkVariant from 'vue-material-design-icons/LinkVariant.vue';
 import DotsHorizontal from 'vue-material-design-icons/DotsHorizontal.vue';
 import VolumeMute from 'vue-material-design-icons/VolumeMute.vue';
 import AccountCancelOutline from 'vue-material-design-icons/AccountCancelOutline.vue';
+import ChatOutline from 'vue-material-design-icons/ChatOutline.vue';
+import FlagOutline from 'vue-material-design-icons/FlagOutline.vue';
+import Close from 'vue-material-design-icons/Close.vue';
 
 const props = defineProps({
     profileUser: {
@@ -122,6 +125,47 @@ const switchTab = (tabName) => {
         preserveState: true,
     });
 };
+
+// ─── Report User Modal ────────────────────────────────────────────────────────
+const showUserReportModal = ref(false);
+const reportReason = ref('spam');
+const reportDescription = ref('');
+const isSubmittingReport = ref(false);
+const toastMessage = ref('');
+
+const showToast = (msg) => {
+    toastMessage.value = msg;
+    setTimeout(() => { toastMessage.value = ''; }, 2500);
+};
+
+const openReportUser = () => {
+    showOptionsMenu.value = false;
+    showUserReportModal.value = true;
+};
+
+const submitUserReport = () => {
+    isSubmittingReport.value = true;
+    router.post(route('reports.store'), {
+        type: 'user',
+        reported_user_id: props.profileUser.id,
+        reason: reportReason.value,
+        description: reportDescription.value,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showUserReportModal.value = false;
+            reportReason.value = 'spam';
+            reportDescription.value = '';
+            showToast('Báo cáo tài khoản đã được gửi thành công.');
+        },
+        onError: (errs) => {
+            showToast(errs.report || 'Gửi báo cáo thất bại.');
+        },
+        onFinish: () => {
+            isSubmittingReport.value = false;
+        }
+    });
+};
 </script>
 
 <template>
@@ -210,8 +254,28 @@ const switchTab = (tabName) => {
                                         <AccountCancelOutline class="mr-2" :size="18" />
                                         <span>{{ localIsBlocked ? `Unblock @${profileUser.username}` : `Block @${profileUser.username}` }}</span>
                                     </button>
+
+                                    <!-- Report User -->
+                                    <button
+                                        type="button"
+                                        @click="openReportUser"
+                                        class="w-full flex items-center px-4 py-2.5 hover:bg-gray-900 text-yellow-500 text-sm font-semibold cursor-pointer border-t border-gray-800"
+                                    >
+                                        <FlagOutline class="mr-2" fillColor="#EAB308" :size="18" />
+                                        <span>Báo cáo @{{ profileUser.username }}</span>
+                                    </button>
                                 </div>
                             </div>
+
+                            <!-- Direct Message Button -->
+                            <Link
+                                v-if="!localIsBlocked && currentUser"
+                                :href="route('messages.index', { contact_id: profileUser.id })"
+                                class="border border-gray-600 hover:bg-gray-900 p-1.5 rounded-full text-white cursor-pointer transition flex items-center justify-center"
+                                title="Nhắn tin"
+                            >
+                                <ChatOutline :size="18" />
+                            </Link>
 
                             <!-- Follow Button -->
                             <button
@@ -362,5 +426,83 @@ const switchTab = (tabName) => {
             :isOpen="isEditModalOpen"
             @close="isEditModalOpen = false"
         />
+
+        <!-- Report User Modal -->
+        <Teleport to="body">
+            <div
+                v-if="showUserReportModal"
+                class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                @click.self="showUserReportModal = false"
+            >
+                <div class="bg-gray-950 border border-gray-700 rounded-2xl w-full max-w-sm shadow-2xl">
+                    <div class="px-6 py-5 border-b border-gray-800 flex items-center justify-between">
+                        <h3 class="text-base font-bold">🚨 Báo cáo @{{ profileUser.username }}</h3>
+                        <button @click="showUserReportModal = false" class="p-1.5 hover:bg-gray-800 rounded-full text-gray-400">
+                            <Close :size="18" />
+                        </button>
+                    </div>
+                    <div class="px-6 py-5 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">Lý do báo cáo:</label>
+                            <div class="space-y-2">
+                                <label
+                                    v-for="(label, key) in {
+                                        spam: 'Spam / Lừa đảo',
+                                        harassment: 'Quấy rối / Xúc phạm',
+                                        hate_speech: 'Ngôn ngữ thù địch',
+                                        misinformation: 'Tin giả / Giả mạo',
+                                        nsfw: 'Nội dung không phù hợp',
+                                        other: 'Khác'
+                                    }"
+                                    :key="key"
+                                    class="flex items-center space-x-3 cursor-pointer group"
+                                >
+                                    <input
+                                        type="radio"
+                                        :value="key"
+                                        v-model="reportReason"
+                                        class="accent-[#1C9CEF]"
+                                    />
+                                    <span class="text-sm text-gray-300 group-hover:text-white transition">{{ label }}</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Mô tả thêm (tuỳ chọn):</label>
+                            <textarea
+                                v-model="reportDescription"
+                                rows="2"
+                                maxlength="500"
+                                placeholder="Thêm thông tin vi phạm..."
+                                class="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-[#1C9CEF] resize-none"
+                            />
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-800 flex justify-end gap-3">
+                        <button
+                            @click="showUserReportModal = false"
+                            class="px-4 py-2 text-sm text-gray-400 hover:text-white border border-gray-700 rounded-full transition"
+                        >
+                            Hủy
+                        </button>
+                        <button
+                            @click="submitUserReport"
+                            :disabled="isSubmittingReport"
+                            class="px-5 py-2 text-sm bg-yellow-600 hover:bg-yellow-500 text-white font-semibold rounded-full transition disabled:opacity-50"
+                        >
+                            {{ isSubmittingReport ? 'Đang gửi...' : 'Gửi báo cáo' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Teleport>
+
+        <!-- Toast notification -->
+        <div
+            v-if="toastMessage"
+            class="fixed bottom-6 right-6 bg-[#1C9CEF] text-white text-sm font-semibold px-4 py-2.5 rounded-full shadow-lg z-50 animate-bounce"
+        >
+            {{ toastMessage }}
+        </div>
     </TwitterLayout>
 </template>
